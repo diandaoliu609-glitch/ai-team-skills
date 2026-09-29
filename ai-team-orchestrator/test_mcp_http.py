@@ -74,6 +74,9 @@ class MCPHTTPTransportTests(unittest.IsolatedAsyncioTestCase):
                     "submit_task",
                     "send_message",
                     "cancel_task",
+                    "start_team_run",
+                    "get_team_run",
+                    "advance_team_run",
                 },
             )
         finally:
