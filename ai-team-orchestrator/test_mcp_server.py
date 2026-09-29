@@ -116,6 +116,9 @@ class MCPFacadeTests(unittest.IsolatedAsyncioTestCase):
             "submit_task",
             "send_message",
             "cancel_task",
+            "start_team_run",
+            "get_team_run",
+            "advance_team_run",
         }
         self.assertEqual(set(tools), expected)
 
@@ -124,6 +127,9 @@ class MCPFacadeTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(tools["submit_task"].annotations.read_only_hint)
         self.assertTrue(tools["submit_task"].annotations.open_world_hint)
         self.assertTrue(tools["cancel_task"].annotations.destructive_hint)
+        self.assertFalse(tools["start_team_run"].annotations.read_only_hint)
+        self.assertTrue(tools["get_team_run"].annotations.read_only_hint)
+        self.assertTrue(tools["advance_team_run"].annotations.idempotent_hint)
 
     async def test_read_tools_do_not_write(self):
         async with Client(self.server) as client:

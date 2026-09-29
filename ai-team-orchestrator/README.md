@@ -588,3 +588,41 @@ Progress is informational only:
 - it does not change `started_at`;
 - workers may emit it only while acknowledged/running/blocked;
 - terminal task truth remains authoritative.
+
+## Automatic team supervisor
+
+`team_supervisor.py` adds a run-level state machine above the truthful Bridge:
+
+```
+primary fan-out
+  -> cross-review barrier
+  -> synthesis
+  -> final.md
+```
+
+By default the supervisor uses every available worker in this order:
+`dsh`, `gemini`, `grok`, `qwen`, `doubao`. Each receives an isolated
+workspace and a distinct role brief. Primary work is concurrent. After the
+primary barrier, successful workers review one another in a ring so every
+successful report gets an independent reviewer.
+
+The background `team_supervisor_daemon.py` polls run state and advances phases
+without changing task truth. It also applies phase deadlines:
+
+- soft timeout: record a supervisor warning only (do not inject a worker
+  follow-up, because follow-ups create another model turn);
+- hard timeout: cancel the stalled task;
+- degraded mode: continue only when the configured minimum number of primary
+  and review tasks succeeded;
+- synthesis: prefer a currently available worker whose own primary task
+  succeeded in the same run.
+
+MCP exposes:
+
+- `start_team_run(goal, workspace, participants?)`
+- `get_team_run(run_id)`
+- `advance_team_run(run_id)` for manual recovery/debugging
+
+Run state is stored under `.orchestrator/team-runs/`. Per-run isolated task
+workspaces live under `.ai-team-runs/<run_id>/` beneath the requested
+workspace. The final result is `synthesis/final.md`.

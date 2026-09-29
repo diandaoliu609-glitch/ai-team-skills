@@ -14,9 +14,10 @@ from mcp.server import MCPServer
 from mcp.types import ToolAnnotations
 
 from supervisor import BridgeClient
+from team_supervisor import TeamSupervisor
 
 
-SERVER_VERSION = "0.5.0"
+SERVER_VERSION = "0.6.0"
 
 SERVER_INSTRUCTIONS = (
     "AI Team Orchestrator controls registered specialist agents. "
@@ -29,6 +30,10 @@ SERVER_INSTRUCTIONS = (
 def build_server(client: BridgeClient | None = None) -> MCPServer:
     bridge = client or BridgeClient(
         os.getenv("AGENT_BRIDGE_URL", "http://127.0.0.1:8765")
+    )
+    team = TeamSupervisor(
+        bridge,
+        state_dir=os.getenv("AI_TEAM_RUN_STATE_DIR", ".orchestrator/team-runs"),
     )
     mcp = MCPServer(
         "ai-team-orchestrator",
@@ -139,6 +144,51 @@ def build_server(client: BridgeClient | None = None) -> MCPServer:
     def cancel_task(task_id: str) -> dict[str, Any]:
         """Stop a queued/running task. Cancellation can interrupt active work."""
         return bridge.cancel(task_id)
+
+    @mcp.tool(
+        title="Start automatic multi-agent team run",
+        annotations=ToolAnnotations(
+            read_only_hint=False,
+            destructive_hint=False,
+            idempotent_hint=False,
+            open_world_hint=True,
+        ),
+    )
+    def start_team_run(
+        goal: str,
+        workspace: str = ".",
+        participants: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Fan out primary work, then auto-review and synthesize through the supervisor daemon."""
+        return team.start_run(
+            goal=goal,
+            workspace=workspace,
+            participants=participants,
+        )
+
+    @mcp.tool(
+        title="Get automatic team run",
+        annotations=ToolAnnotations(
+            read_only_hint=True,
+            open_world_hint=False,
+        ),
+    )
+    def get_team_run(run_id: str) -> dict[str, Any]:
+        """Get the multi-agent run graph and truthful task states."""
+        return team.get_run(run_id)
+
+    @mcp.tool(
+        title="Advance automatic team run",
+        annotations=ToolAnnotations(
+            read_only_hint=False,
+            destructive_hint=False,
+            idempotent_hint=True,
+            open_world_hint=False,
+        ),
+    )
+    def advance_team_run(run_id: str) -> dict[str, Any]:
+        """Manually advance one run; normally the background supervisor daemon does this."""
+        return team.advance(run_id)
 
     return mcp
 
