@@ -42,6 +42,9 @@ jobs:
       - name: Unit + subprocess integration tests
         run: python -m unittest discover -v
 
+      - name: Validate task/artifact truth
+        run: python check_task_truth.py
+
       - name: Node worker syntax
         run: |
           cd node-worker
