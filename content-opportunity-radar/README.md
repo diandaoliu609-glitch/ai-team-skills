@@ -33,7 +33,7 @@ A single provider failure must not fail the entire pipeline.
 
 ## Run
 
-Requires Python 3.10+ and no third-party packages.
+Requires Python 3.11+ and no third-party packages.
 
 ```bash
 cd content-opportunity-radar
@@ -567,6 +567,32 @@ A Research Pack contains only material traceable to the scored opportunity:
 - guardrails instructing downstream agents not to invent missing dimensions or unsupported facts
 
 The Research Pack does **not** ask an LLM to generate a trend, topic, citation, or unsupported claim. It is the contract between the Signal Intelligence Engine and downstream AI Team skills such as research, writing, review, and publishing.
+
+## Candidate relevance evaluation
+
+Real-source discovery quality is measured with human labels rather than by
+letting the model grade its own output. Export the latest ranking:
+
+```bash
+python candidate_eval.py export \
+  --db .radar/radar.db \
+  --scope "AI Agents" \
+  --limit 10 \
+  --output .radar/ai-agents-eval.json
+```
+
+Set each item's `relevant` field to `true` or `false` and add a short note
+for false positives. Then score Top-K quality:
+
+```bash
+python candidate_eval.py score .radar/ai-agents-eval.json --k 5
+```
+
+`precision_at_k` is reported only when all Top-K positions are labeled.
+`labeled_precision_at_k` is diagnostic only and must not be presented as full
+precision when label coverage is incomplete. This evaluation is intentionally
+separate from Opportunity Score; labels assess discovery/relevance quality and
+do not change deterministic market-signal scoring.
 
 ## WeChat Research Handoff V1
 

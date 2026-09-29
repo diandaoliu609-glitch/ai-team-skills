@@ -5,6 +5,9 @@ on:
     branches:
       - main
       - "dsh/**"
+      - "feat/**"
+      - "fix/**"
+      - "docs/**"
       - "feature/**"
   pull_request:
     paths:

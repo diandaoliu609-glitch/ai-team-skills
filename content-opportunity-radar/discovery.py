@@ -59,11 +59,15 @@ def _clean_phrase(tokens: Sequence[str]) -> str:
     return " ".join(token for token in tokens if token).strip()
 
 
-def _valid_phrase(phrase: str) -> bool:
+def _valid_phrase(
+    phrase: str,
+    *,
+    allow_generic: bool = False,
+) -> bool:
     tokens = canonical_tokens(phrase)
     if not tokens:
         return False
-    if len(tokens) == 1 and tokens[0] in GENERIC_SINGLE_TOKENS:
+    if not allow_generic and all(token in GENERIC_SINGLE_TOKENS for token in tokens):
         return False
     if len(tokens) > 6:
         return False
@@ -120,6 +124,19 @@ def _github_topics(event: RawEvent) -> list[str]:
     return [str(item).replace("-", " ").strip() for item in topics if str(item).strip()]
 
 
+def _event_scope_tokens(event: RawEvent) -> set[str]:
+    parts = [event.title, event.text, event.community]
+    if event.provider == "github":
+        parts.extend(_github_topics(event))
+    return set(canonical_tokens(" ".join(str(part or "") for part in parts)))
+
+
+def _scope_supported(event: RawEvent, scope_tokens: set[str]) -> bool:
+    if not scope_tokens:
+        return True
+    return bool(_event_scope_tokens(event) & scope_tokens)
+
+
 def _title_phrases(text: str, max_phrases: int = 20) -> list[str]:
     """Extract deterministic 2-4 token phrases from observed text."""
     raw_tokens = [normalize_text(token) for token in TOKEN_RE.findall(text)]
@@ -161,7 +178,7 @@ def extract_candidate_evidence(
 
     for event in events:
         query = _query_from_gsc(event)
-        if query and _valid_phrase(query):
+        if query and _valid_phrase(query, allow_generic=True):
             evidence.append(
                 CandidateEvidence(
                     phrase=query,
@@ -172,8 +189,17 @@ def extract_candidate_evidence(
                 )
             )
 
+        scope_supported = _scope_supported(event, scope_tokens)
+
         for topic in _github_topics(event):
-            if _valid_phrase(topic):
+            topic_tokens = canonical_tokens(topic)
+            # Public repository tags such as "python", "openai", or "cursor"
+            # are too broad/ambiguous to become standalone opportunities.
+            # First-party GSC queries remain the explicit single-token escape
+            # hatch because they represent observed site demand.
+            if len(topic_tokens) == 1:
+                continue
+            if scope_supported and _valid_phrase(topic):
                 evidence.append(
                     CandidateEvidence(
                         phrase=topic,
@@ -185,6 +211,8 @@ def extract_candidate_evidence(
                 )
 
         source_text = " ".join(filter(None, [event.title, event.text]))
+        if not scope_supported:
+            continue
         for phrase in _title_phrases(source_text, max_title_phrases_per_event):
             tokens = set(canonical_tokens(phrase))
             if scope_tokens and tokens and tokens <= scope_tokens:

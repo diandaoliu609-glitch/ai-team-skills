@@ -134,12 +134,73 @@ class DiscoveryTests(unittest.TestCase):
         explicit = {item.phrase for item in evidence if item.explicit}
         self.assertIn("agent memory architecture", explicit)
         self.assertIn("context engineering", explicit)
-        self.assertIn("ai agent", explicit)
+        self.assertNotIn("ai agent", explicit)
 
         candidates = discover_candidates(rows, scope="AI", max_candidates=10)
         names = {row.name for row in candidates}
         self.assertIn("agent memory architecture", names)
         self.assertIn("context engineering", names)
+        self.assertNotIn("ai agent", names)
+
+    def test_public_single_token_topics_do_not_become_ambiguous_candidates(self):
+        rows = [
+            event(
+                "gh1",
+                "github",
+                title="AI agent runtime implemented in Python",
+                text="Open source runtime for production AI agents",
+                raw={
+                    "kind": "repository",
+                    "topics": ["python", "open-source", "agent-memory"],
+                },
+            ),
+            event(
+                "news1",
+                "google_news",
+                title="14-foot python found near city park",
+                text="Wildlife officials removed an invasive snake.",
+            ),
+        ]
+        candidates = discover_candidates(rows, scope="AI Agents", max_candidates=20)
+        names = {row.name for row in candidates}
+        self.assertNotIn("python", names)
+        self.assertNotIn("open source", names)
+        self.assertIn("agent memory", names)
+
+    def test_first_party_gsc_can_seed_single_token_query(self):
+        rows = [
+            event(
+                "gsc-python",
+                "gsc",
+                raw={
+                    "dimensions": {
+                        "query": "python",
+                        "page": "https://example.com/python",
+                    }
+                },
+            )
+        ]
+        candidates = discover_candidates(rows, scope="AI Agents", max_candidates=10)
+        self.assertEqual([row.name for row in candidates], ["python"])
+
+    def test_title_phrases_require_scope_support(self):
+        rows = [
+            event(
+                "relevant",
+                "google_news",
+                title="Agent memory architecture gains adoption",
+            ),
+            event(
+                "noise",
+                "google_news",
+                title="Python snake rescue draws crowds",
+                text="Wildlife story with no artificial intelligence context.",
+            ),
+        ]
+        evidence = extract_candidate_evidence(rows, scope="AI Agents")
+        event_ids = {item.event_id for item in evidence}
+        self.assertIn("relevant", event_ids)
+        self.assertNotIn("noise", event_ids)
 
     def test_discovery_does_not_need_llm_or_synthetic_topic(self):
         rows = [
