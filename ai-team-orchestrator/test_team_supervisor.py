@@ -84,11 +84,11 @@ class TeamSupervisorTests(unittest.TestCase):
 
             self.assertEqual(run["participants"], TEAM_ORDER)
             self.assertEqual(run["status"], "primary_running")
-            self.assertEqual(len(run["primary"]), 5)
+            self.assertEqual(len(run["primary"]), 6)
             primary_workspaces = {
                 entry["workspace"] for entry in run["primary"].values()
             }
-            self.assertEqual(len(primary_workspaces), 5)
+            self.assertEqual(len(primary_workspaces), 6)
 
             for agent_id, entry in run["primary"].items():
                 bridge.complete(
@@ -99,7 +99,7 @@ class TeamSupervisorTests(unittest.TestCase):
 
             run = supervisor.advance(run["run_id"])
             self.assertEqual(run["status"], "review_running")
-            self.assertEqual(len(run["reviews"]), 5)
+            self.assertEqual(len(run["reviews"]), 6)
             pairs = {
                 (entry["reviewer"], entry["target"])
                 for entry in run["reviews"].values()
@@ -111,12 +111,13 @@ class TeamSupervisorTests(unittest.TestCase):
                     ("gemini", "dsh"),
                     ("grok", "gemini"),
                     ("qwen", "grok"),
-                    ("doubao", "qwen"),
+                    ("muse", "qwen"),
+                    ("doubao", "muse"),
                 },
             )
             for entry in run["reviews"].values():
                 inputs = Path(entry["workspace"]) / "inputs"
-                self.assertEqual(len(list(inputs.glob("primary-*.md"))), 5)
+                self.assertEqual(len(list(inputs.glob("primary-*.md"))), 6)
                 bridge.complete(
                     entry["task_id"],
                     "review.md",
@@ -127,8 +128,8 @@ class TeamSupervisorTests(unittest.TestCase):
             self.assertEqual(run["status"], "synthesis_running")
             self.assertEqual(run["synthesis"]["agent_id"], "gemini")
             synth_inputs = Path(run["synthesis"]["workspace"]) / "inputs"
-            self.assertEqual(len(list(synth_inputs.glob("primary-*.md"))), 5)
-            self.assertEqual(len(list(synth_inputs.glob("review-*.md"))), 5)
+            self.assertEqual(len(list(synth_inputs.glob("primary-*.md"))), 6)
+            self.assertEqual(len(list(synth_inputs.glob("review-*.md"))), 6)
 
             bridge.complete(
                 run["synthesis"]["task_id"],

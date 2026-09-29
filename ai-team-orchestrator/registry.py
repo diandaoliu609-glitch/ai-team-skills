@@ -74,6 +74,7 @@ class AgentRegistry:
             ("gemini", "Gemini", ["research", "long_context", "multimodal"]),
             ("grok", "Grok", ["research", "trend_analysis", "adversarial_review"]),
             ("qwen", "Qwen", ["implementation", "research", "long_context"]),
+            ("muse", "Muse", ["implementation", "long_context", "multimodal", "code_review"]),
             ("doubao", "Doubao", ["research", "chinese_content", "multimodal"]),
             ("codex", "Codex", ["implementation", "testing", "code_review"]),
         ):

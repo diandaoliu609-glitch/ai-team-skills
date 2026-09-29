@@ -19,8 +19,8 @@ from typing import Any
 from supervisor import BridgeClient
 
 
-TEAM_ORDER = ["dsh", "gemini", "grok", "qwen", "doubao"]
-SYNTHESIS_PREFERENCE = ["gemini", "qwen", "doubao", "dsh", "grok"]
+TEAM_ORDER = ["dsh", "gemini", "grok", "qwen", "muse", "doubao"]
+SYNTHESIS_PREFERENCE = ["gemini", "muse", "qwen", "doubao", "dsh", "grok"]
 TERMINAL = {"completed", "failed", "cancelled"}
 ACTIVE_RUN_STATUSES = {"primary_running", "review_running", "synthesis_running"}
 
@@ -52,6 +52,13 @@ ROLE_PROFILES: dict[str, dict[str, str]] = {
         "brief": (
             "Focus on structured solution design, implementation alternatives, decomposition, "
             "interfaces, acceptance criteria, and efficient execution paths."
+        ),
+    },
+    "muse": {
+        "label": "Long-Context Engineer & Reviewer",
+        "brief": (
+            "Focus on long-horizon coding work, large-context repository reasoning, multimodal "
+            "engineering evidence, implementation quality, and independent code/design review."
         ),
     },
     "doubao": {

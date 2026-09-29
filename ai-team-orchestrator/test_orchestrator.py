@@ -185,7 +185,7 @@ class OrchestratorTests(unittest.TestCase):
     def test_registry_exposes_unconfigured_future_agents_truthfully(self):
         registry = AgentRegistry.default(dsh_configured=True)
         self.assertTrue(registry.get("dsh").available)
-        for agent_id in ("gemini", "grok", "qwen", "doubao", "codex"):
+        for agent_id in ("gemini", "grok", "qwen", "muse", "doubao", "codex"):
             agent = registry.get(agent_id)
             self.assertFalse(agent.available)
             self.assertFalse(agent.configured)

@@ -601,7 +601,7 @@ primary fan-out
 ```
 
 By default the supervisor uses every available worker in this order:
-`dsh`, `gemini`, `grok`, `qwen`, `doubao`. Each receives an isolated
+`dsh`, `gemini`, `grok`, `qwen`, `muse`, `doubao`. Each receives an isolated
 workspace and a distinct role brief. Primary work is concurrent. After the
 primary barrier, successful workers review one another in a ring so every
 successful report gets an independent reviewer.

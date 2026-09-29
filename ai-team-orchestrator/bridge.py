@@ -1126,7 +1126,7 @@ def main() -> int:
             for item in os.getenv("AI_TEAM_PULL_AGENTS", "dsh").split(",")
             if item.strip()
         ]
-    supported_agents = {"dsh", "gemini", "grok", "qwen", "doubao", "codex"}
+    supported_agents = {"dsh", "gemini", "grok", "qwen", "muse", "doubao", "codex"}
     enabled_pull_agents = tuple(dict.fromkeys(raw_pull_agents))
     unknown_agents = [
         agent_id
