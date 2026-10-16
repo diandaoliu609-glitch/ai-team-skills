@@ -14,6 +14,8 @@ from typing import Mapping
 from urllib.parse import urlsplit, urlunsplit
 import json
 
+from source_authority import AuthorityError, require_grant
+
 PLATFORMS = frozenset({"zhihu", "douyin", "bilibili", "xiaohongshu", "xianyu"})
 PATHWAYS = frozenset({"official_api", "oauth_api", "licensed", "android_screen"})
 ALLOWED_METRICS = frozenset({
@@ -118,6 +120,11 @@ def accept_candidate(
     if not isinstance(platform, str) or platform not in PLATFORMS or platform != grant.platform:
         raise SourceGateError("platform_grant_mismatch")
     grant.validate(current)
+    # 调用方构造的 SourceGrant 只是声明；必须由独立授权登记表背书。
+    try:
+        require_grant(grant)
+    except AuthorityError:
+        raise SourceGateError("untrusted_source_grant") from None
     external_id = candidate.get("source_id")
     if not isinstance(external_id, str) or not external_id.strip() or len(external_id) > 180:
         raise SourceGateError("invalid_source_id")

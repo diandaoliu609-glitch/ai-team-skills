@@ -4,6 +4,7 @@ from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
 from source_intake import SourceGrant, SourceGateError, accept_candidate
+from test_authority_fixtures import SyntheticAuthority
 
 NOW = datetime(2026, 10, 12, 13, 0, tzinfo=timezone.utc)
 
@@ -29,8 +30,39 @@ def candidate(platform="zhihu", **changes):
 
 
 class SourceIntakeTest(unittest.TestCase):
+    def setUp(self):
+        self.authority = SyntheticAuthority()
+        self.addCleanup(self.authority.close)
+
     def accept(self, value, permission):
+        # 测试模拟管理员签发；生产端只能校验，不能自行签发。
+        if isinstance(permission, SourceGrant):
+            self.authority.grant(permission)
         return accept_candidate(value, permission, now=NOW)
+
+    def test_forged_grant_rejected_without_trusted_registration(self):
+        fabricated = grant(grant_ref="invented-by-untrusted-caller")
+        with self.assertRaisesRegex(SourceGateError, "untrusted_source_grant"):
+            accept_candidate(candidate(), fabricated, now=NOW)
+
+    def test_signed_grant_tampering_and_revocation_rejected(self):
+        genuine = grant()
+        self.authority.grant(genuine)
+        with self.assertRaisesRegex(SourceGateError, "untrusted_source_grant"):
+            accept_candidate(candidate(), replace(genuine, pathway="licensed"), now=NOW)
+        # 即使有人能修改登记 JSON，没有管理员签名也无法完成撤销后的伪造恢复。
+        self.authority.records["grant"][genuine.grant_ref]["payload"]["revoked"] = True
+        self.authority._flush("grant")
+        with self.assertRaisesRegex(SourceGateError, "untrusted_source_grant"):
+            accept_candidate(candidate(), genuine, now=NOW)
+
+    def test_missing_trusted_registry_fails_closed(self):
+        genuine = grant()
+        self.authority.grant(genuine)
+        from unittest.mock import patch
+        with patch.dict("os.environ", {"RADAR_TRUSTED_GRANTS_FILE": ""}):
+            with self.assertRaisesRegex(SourceGateError, "untrusted_source_grant"):
+                accept_candidate(candidate(), genuine, now=NOW)
 
     def test_all_five_platforms_are_allowlisted_without_claiming_real_api(self):
         urls = {

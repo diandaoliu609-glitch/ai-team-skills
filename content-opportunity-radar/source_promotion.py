@@ -5,6 +5,7 @@ from typing import Mapping
 
 from core import AcquisitionMethod, Provenance, RawEvent, stable_id
 from source_intake import SourceGateError, SourceGrant, accept_candidate
+from source_authority import AuthorityError, require_review
 
 PROMOTABLE = frozenset({"official_api", "oauth_api", "licensed"})
 TERMS = frozenset({"authorized_public", "authorized_creator", "licensed_content"})
@@ -49,6 +50,11 @@ def preview_raw_event(staged: Mapping, grant: SourceGrant, review: ReviewApprova
             or not isinstance(review.expires_at, datetime)
             or review.expires_at.tzinfo is None or review.expires_at <= current):
         raise SourceGateError("independent_review_invalid")
+    # 第二道门禁使用独立于来源授权的审查者密钥/登记表。
+    try:
+        require_review(review)
+    except AuthorityError:
+        raise SourceGateError("untrusted_review_approval") from None
     candidate = {key: staged[key] for key in CANDIDATE_FIELDS if key in staged}
     expected = accept_candidate(candidate, grant, now=current)
     if dict(staged) != expected:
