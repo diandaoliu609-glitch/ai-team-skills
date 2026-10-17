@@ -13,7 +13,9 @@ export const MODEL = "deepseek-v4.1-flash";
 export const MODEL_LABEL = "WorkBuddy AI international / DeepSeek V4.1 Flash";
 export const MAX_CATALOG_AGE_MS = 24 * 60 * 60 * 1000;
 export const ISOLATED_PROFILE = "ai-team-intl";
-export const REQUIRED_PLUGIN_VERSION = "0.7.2";
+// 0.7.6 修复了国际站对 X-Conversation-* 三个请求头的强制校验。
+// 禁止自动升到 0.7.7/0.7.8；当前隔离内核仍固定 0.2.0-rc.2。
+export const REQUIRED_PLUGIN_VERSION = "0.7.6";
 const MIN_PROMO_WINDOW_MS = 10 * 60 * 1000;
 
 const fail = (reason) => {

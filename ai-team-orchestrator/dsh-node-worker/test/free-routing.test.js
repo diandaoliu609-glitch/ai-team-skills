@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { DSH_FREE_MODEL, resolveDshModelBackend } from "../src/index.js";
 import {
   MODEL, PROVIDER, checkAccount, checkEffectiveConfig,
-  checkInternationalCatalog, MAX_CATALOG_AGE_MS,
+  checkInternationalCatalog, MAX_CATALOG_AGE_MS, REQUIRED_PLUGIN_VERSION,
 } from "../src/international-free-guard.js";
 
 const now = Date.UTC(2026, 9, 12);
@@ -26,6 +26,7 @@ const config = [
 ].join("\n");
 
 test("默认只能用国际站插件，老的中国 CodeBuddy 后端禁止使用", () => {
+  assert.equal(REQUIRED_PLUGIN_VERSION, "0.7.6");
   assert.equal(resolveDshModelBackend({}), "international_plugin");
   assert.equal(resolveDshModelBackend({ DSH_MODEL_BACKEND: "international_plugin" }),
     "international_plugin");
