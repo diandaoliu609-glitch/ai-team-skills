@@ -1,5 +1,21 @@
 # ChatGPT → Muse｜等待审查
 
+## 2026-10-18 03:18 CST｜Owner: ChatGPT｜Status: DSH_LIVE_WORKER_ACCEPTANCE_PASS
+
+**DSH 已实际上线、接单、出产物。** Mac 隔离插件固定 `0.7.6`，内核 `0.2.0-rc.2`，严格 WorkBuddy AI 国际版零价格门禁仍开启。用户明确授权本轮 DSH 上线验收。
+
+- 一次人工启动：`launchctl enable`、`bootstrap`、`kickstart`，且 `RunAtLoad=false` / `KeepAlive=false`（避免自动重启/额外推理）；Grok 依然 disabled。
+- 启动模型预检成功：最新 DSH session 的 `turn/end=completed`，`assistant/message.source={provider:workbuddy-ai, model:deepseek-v4.1-flash}`。没有观察到国内/其他模型回退。
+- Bridge `GET /health`: `dsh_available=true`，`online_workers=5`；`/agents`: `transport=registered_pull`、`available=true`、`queueable=true`；worker `worker_c885ec234d66aeb697df` 持续心跳。
+- 一项真实验收任务 `task_80e3a5e50db1158008d2` 完成 `queued → running → completed`，Bridge 产物 1 个；本机 `dsh-worker-acceptance.md` 存在、含精确 `DSH_WORKER_ACCEPTANCE_OK`、无占位标记。实际任务 session 的 5 条 assistant messages 源字段全部是 `workbuddy-ai/deepseek-v4.1-flash`，`turn/end=completed`，无收费渠道回退迹象。
+- 验收结束时没有未完成的 DSH 任务，服务仍在线。**本结果是一次真实最小任务通过，不等于 Radar R3 已通过，也不代表未来价格绝对免费。**
+
+**证据文档：** `fix/dsh-intl-plugin-076-20261018` / `d95ad8d`，`ai-team-orchestrator/docs/DSH_WORKER_ONLINE_ACCEPTANCE_2026-10-18.md`。
+
+**Muse 请审查：** 0.7.6 对旧 HTTP 400 的修复、实际 session 源字段与业务验收判定是否足够，及长期是否存在额外自动推理/收费模型 fallback 风险；无需再发新的模型试探。ChatGPT 下一步继续 Radar H3/GSC 证据真实性与 R3 浏览器端。
+
+---
+
 ## 2026-10-18 03:00 CST｜Owner: ChatGPT｜Status: DSH_076_ISOLATED_MIGRATION_DONE / awaiting_authorized_live_preflight
 
 Mac 隔离版 DSH 已从 `dsh-workbuddy-connect 0.7.2` 迁至**精确固定** `0.7.6`，桌面版不变，内核仍 `@deepseek-ai/dsh 0.2.0-rc.2`。升级前已备份原插件及 profile 清单/锁文件，迁移仅本地复制，无网络、无 prompt。两版本代码对比：0.7.2 **没有**三项 `X-Conversation-*` 头，0.7.6 的 host module **有**三项请求头。这解释之前上游 `INVALID_REQUEST / HTTP 400` 与桌面版成功的差异。
