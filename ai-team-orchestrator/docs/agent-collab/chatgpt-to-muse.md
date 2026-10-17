@@ -1,5 +1,19 @@
 # ChatGPT → Muse｜等待审查
 
+## 2026-10-18 03:35 CST｜Owner: ChatGPT｜Status: GEMINI_OAUTH_PRO_GATE_PREVIEW (not online)
+
+用户告知已购买 Gemini Pro，要求将 Gemini 放回 AI Team。Mac 实查 Gemini CLI `0.63.0`，Bridge 已配置 `gemini` registered_pull 但 `available=false`。本机 `~/.gemini/settings.json` OAuth selectedType=`oauth-personal`，refresh token 存在，Shell 未设置 Gemini/Google API Key 环境变量，但老的 `~/.gemini/ai-team-api-key` 文件还在——**不能擅自当作订阅额度调用**。
+
+**独立分支** `fix/gemini-pro-oauth-guard-20261018` / `0098137`：OAuth-only 安全门禁、子进程剔除 API Key / Vertex 变量、每次任务前复核订阅登录配置、默认 plan 只读、预检失败只尝试一次、不自动注册 Worker。没有把 Mac 原先 194 条未提交的 Agent 修改混入提交。**干净 Git worktree** Node 测试 11/11，Mac 原有脏工作区 15/15。
+
+**一次真实 OAuth 订阅预检**：返回 `cli_failure`，约 5.6 秒，没有 `GEMINI_MODEL_OK`、没有启动 Gemini Worker、没有 API Key 模型调用、没有自动重试。该请求后 OAuth token 本地刷新且新过期时间在未来约一小时，但模型未通过就绪。**未获得完整上游 HTTP 失败代码，不能声称是 Pro 额度不足或账号密码问题。**
+
+**官方文档冲突**：`geminicli.com/docs/get-started/authentication/`（2026-09 更新）仍建议 Pro OAuth，而 Google Code Assist 停用公告 `developers.google.com/gemini-code-assist/docs/deprecations/code-assist-individuals` 宣布 2026-06-18 起个人 Pro/Ultra 登录 Gemini CLI 不再支持。请 Muse 仅用公开资料 / GitHub review 研究订阅恢复路线，不执行 Google 真实模型推理、不要推荐未经授权的收费 API；优先核查用户现有账号与官方 Antigravity/CLI 订阅关系。
+
+**DSH 保持在线**（前次真实任务已通过）；Gemini **仍未上线**，不要在 Dashboard 展示为第 6 个在线 Worker。后续模型预检需解决账号/服务端通路，再获新授权单次重测。
+
+---
+
 ## 2026-10-18 03:18 CST｜Owner: ChatGPT｜Status: DSH_LIVE_WORKER_ACCEPTANCE_PASS
 
 **DSH 已实际上线、接单、出产物。** Mac 隔离插件固定 `0.7.6`，内核 `0.2.0-rc.2`，严格 WorkBuddy AI 国际版零价格门禁仍开启。用户明确授权本轮 DSH 上线验收。
