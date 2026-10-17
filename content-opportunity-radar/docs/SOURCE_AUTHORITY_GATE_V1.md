@@ -7,7 +7,10 @@
 1. 调用方的 `SourceGrant` / `ReviewApproval` **仅为声明**，构造 dataclass 不代表授权。
 2. `accept_candidate` 先做字段与费用门禁，再向外部可信来源授权登记表验证**整份记录的签名和内容**。不存在 / 过期 / 被撤销 / 内容修改 / 签名错误 / 密钥权限过宽，均拒绝。
 3. `preview_raw_event` 另查**独立审核登记表**，使用另一把密钥验证审核记录，然后重算暂存证据哈希并匹配授权/审核绑定。屏幕证据仍严格只限 `staged_only`。
-4. `RawEventPreview.persistence_allowed` 仍然是 `False`。**这不等价于生产数据库写入门禁。** 任何后续生产写入适配器必须有独立强制校验与测试，不能直接从 `.event` 持久化。
+4. `RawEventPreview.persistence_allowed` 始终为 `False`。**2026-10-18 已补 H2 数据库与文件缓存写入门禁**：`event_persistence.ensure_persistable_event()` 在 `RadarStore.record_result()`、`_upsert_event()` 和 `EventCache.save()` 的实际写入前拒绝 `offline_preview_only` 包装与其 `RawEvent` 来源。
+5. SQLite `raw_events` 表还添加 `reject_offline_preview_insert` / `reject_offline_preview_update` 触发器。数据库初始化时为既有库补装；任何直接 `INSERT` / `UPDATE` 写入 `source_intake_offline_review` 都会报错。这是对 Python 调用层检查的第二道防线。
+
+**剩余边界（不得忽略）：** 上述保护以受控 `RawEvent.source` 作为离线预览的识别字段，不能阻止恶意调用者故意重造或篡改普通 `RawEvent`、伪造来源字段、绕过所有受信采集接口。真正允许新来源进入生产，需要将授权管理员签名的来源、审核签名、事件证据哈希绑定在完整的受信发布与生产写入协议中；目前不应对外宣称已完成所有生产数据真实性审查。
 
 ## 仅供本地部署管理员准备的配置（不得写入 Git）
 
@@ -28,7 +31,8 @@
 
 ```bash
 python3 -m unittest test_source_intake test_source_promotion test_android_staging -q
+python3 -m unittest test_event_persistence test_collector test_source_promotion -q
 python3 -m unittest discover -p 'test_*.py' -q
 ```
 
-上述命令只生成临时合成授权与密钥，不访问网络或调用模型。验收中需另外检查生产写入入口、签发人分权、第三方 API 与设备的真实使用授权，以及 R3 真用户验证；目前这些均**未验收**。
+上述命令只生成临时合成授权与密钥，不访问第三方 API 或模型。2026-10-18 本机离线回归 **359/359 通过**，包含 6 项新增数据库/文件缓存拦截测试。签发人分权、第三方 API 与设备的真实使用授权，以及 R3 真用户验证仍**未验收**。

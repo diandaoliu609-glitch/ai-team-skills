@@ -305,11 +305,15 @@ class EventCache:
             return {}
 
     def save(self, provider: str, topic: str, events: Iterable[RawEvent]) -> None:
+        # 文件缓存也是持久化，不能绕道保存 offline_preview_only。
+        from event_persistence import ensure_persistable_event
+
+        checked = [ensure_persistable_event(event) for event in events]
         with self._lock:
             payload = self._read()
             payload[self._key(provider, topic)] = {
                 "saved_at": isoformat(utcnow()),
-                "events": [event.to_dict(include_raw=True) for event in events],
+                "events": [event.to_dict(include_raw=True) for event in checked],
             }
             self.path.parent.mkdir(parents=True, exist_ok=True)
             self.path.write_text(

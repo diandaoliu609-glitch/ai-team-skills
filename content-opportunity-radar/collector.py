@@ -39,6 +39,7 @@ from core import (
     stable_id,
     utcnow,
 )
+from event_persistence import ensure_persistable_event
 from gsc import GSCProvider
 from keyword_planner import KeywordPlannerProvider
 from pipeline import (
@@ -316,6 +317,21 @@ class RadarStore:
                 provenance_json TEXT NOT NULL
             );
 
+            -- 对既有数据库同样补装触发器，禁止通过直接 SQL 绕过 Python 代码门禁。
+            CREATE TRIGGER IF NOT EXISTS reject_offline_preview_insert
+            BEFORE INSERT ON raw_events
+            WHEN NEW.source = 'source_intake_offline_review'
+            BEGIN
+                SELECT RAISE(ABORT, 'offline_preview_persistence_forbidden');
+            END;
+
+            CREATE TRIGGER IF NOT EXISTS reject_offline_preview_update
+            BEFORE UPDATE ON raw_events
+            WHEN NEW.source = 'source_intake_offline_review'
+            BEGIN
+                SELECT RAISE(ABORT, 'offline_preview_persistence_forbidden');
+            END;
+
             CREATE TABLE IF NOT EXISTS event_observations (
                 observation_id TEXT PRIMARY KEY,
                 event_id TEXT NOT NULL,
@@ -399,6 +415,7 @@ class RadarStore:
         observed_at: datetime,
         job_id: str,
     ) -> None:
+        ensure_persistable_event(event)
         timestamp = isoformat(observed_at)
         payload = event.to_dict(include_raw=False)
         metrics_json = _json(event.metrics)
@@ -514,6 +531,9 @@ class RadarStore:
         next_due_at: datetime,
         consecutive_failures: int,
     ) -> None:
+        # 整批预校验，违规预览不会造成一部分数据已落库的半成功状态。
+        for event in result.events:
+            ensure_persistable_event(event)
         run_id = stable_id(
             "run",
             job.id,

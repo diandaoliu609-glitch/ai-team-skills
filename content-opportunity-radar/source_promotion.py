@@ -6,6 +6,7 @@ from typing import Mapping
 from core import AcquisitionMethod, Provenance, RawEvent, stable_id
 from source_intake import SourceGateError, SourceGrant, accept_candidate
 from source_authority import AuthorityError, require_review
+from event_persistence import PREVIEW_SOURCE
 
 PROMOTABLE = frozenset({"official_api", "oauth_api", "licensed"})
 TERMS = frozenset({"authorized_public", "authorized_creator", "licensed_content"})
@@ -64,7 +65,7 @@ def preview_raw_event(staged: Mapping, grant: SourceGrant, review: ReviewApprova
         raise SourceGateError("review_evidence_binding_invalid")
     event = RawEvent(
         id=stable_id("source-intake-reviewed", expected["dedupe_key"]),
-        provider=grant.platform, source="source_intake_offline_review",
+        provider=grant.platform, source=PREVIEW_SOURCE,
         acquisition_method=AcquisitionMethod(grant.pathway),
         retrieved_at=datetime.fromisoformat(expected["captured_at"]),
         external_id=expected["source_id"], url=expected["canonical_url"],
