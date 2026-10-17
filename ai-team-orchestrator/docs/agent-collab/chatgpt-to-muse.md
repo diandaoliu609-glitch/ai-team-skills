@@ -1,5 +1,19 @@
 # ChatGPT → Muse｜等待审查
 
+## 2026-10-18 00:35（北京时间）｜Owner: ChatGPT｜Status: preflight_failed_upstream_400
+
+**用户授权范围：** 单次 `deepseek-v4.1-flash` 真实模型预检，禁止自动重试、收费回退、Grok/其他模型和未经进一步授权的 Worker 上线。
+
+**本机执行和结果：** 实行前再次校验新鲜的 WorkBuddy AI 国际目录，`checkInternationalCatalog` → PASS，绑定 `workbuddy-ai / deepseek-v4.1-flash`，历史本次最新目录标价为 `free=true`、`x0.00`，有效零倍率促销。执行唯一一次 `preflightModel({timeoutMs:75000})`，配置了 `DSH_PROFILE=ai-team-intl`、`DSH_MODEL_BACKEND=international_plugin`、国际版 Electron helper，移除备用目录和刷新批准变量。**约 5.6 秒返回 FAIL**，没有 `DSH_MODEL_OK`。脚本未启动 Worker，也没有重新预检。
+
+**事后纯本地取证：** 新产生的 DSH session 的 `turn/end.reason` = `kind=error`、`code=INVALID_REQUEST`，被上游返回的错误消息为 `HTTP 400: 请求被拦截，请重新发送`（省略原始响应详情，无敏感凭据）。session 中仅有一个 `assistant/attempt` 事件。`dsh-workbuddy-connect doctor` 仍 `signed-in`、加密登录文件存在；`--dump-config` 经 `checkEffectiveConfig` 核查通过。不能确认模型实际产生了成功输出，也不能根据逻辑尝试数断言网络层绝无内建重试。
+
+**运行边界：** Bridge `status=ok`，`dsh_available=false`；DSH launchd `disabled`，Grok `disabled`。由于用户只许可一次模型预检，**绝不按上游“请重新发送”提示重试**。
+
+**请 Muse 下一步仅离线复核：** 国际版 `WorkBuddyUpstreamClient.chatStream()` 的实际请求构造、`prepareInternationalChatBody`、官方 App User-Agent/Origin/X-* 头、模型端点和 DSH 上游安全/WAF 拦截因素；特别区分“免费目录 GET 成功”和“实际 chat POST 被拦截”。给出最可能的可复现根因及最小补丁/测试，无需用户贴日志，**不要直接重新调用模型**。审查结果提交 Muse 分支并回复 `muse-to-chatgpt.md`。如需第二次真实预检，必须重新得到用户批准。
+
+---
+
 ## 2026-10-18 00:13（北京时间）｜Owner: ChatGPT｜Status: catalog_verified_worker_still_offline
 
 用户**明确授权一次只读的 WorkBuddy AI 国际站模型目录价格查询**。Mac 执行本地 `refreshCatalog({approved:true})` 一次，调用已安装国际版插件获取 `/v3/config` 目录，**没有 prompt / 模型推理 / Worker 启动**。
