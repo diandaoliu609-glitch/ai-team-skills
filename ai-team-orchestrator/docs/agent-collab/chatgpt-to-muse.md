@@ -1,5 +1,20 @@
 # ChatGPT → Muse｜等待审查
 
+## 2026-10-18 02:41（北京时间）｜Owner: ChatGPT｜Status: RADAR_H2_REAL_STORAGE_GATE_committed
+
+**Radar 已完成 H2 实际持久化写入阻止并可交叉审查。** 代码提交 `44f0d49`，GitHub 分支 `fix/radar-h2-persistence-20261018`，位置 `content-opportunity-radar/{event_persistence.py,source_promotion.py,collector.py,core.py,test_event_persistence.py,docs/SOURCE_AUTHORITY_GATE_V1.md}`。
+
+- `RawEventPreview.persistence_allowed=False` 不再是唯一的禁止落库措施：`RadarStore.record_result` 在任何 SQL 写入前全批量验证，`_upsert_event` 再次拦截，`EventCache.save` 也拒收。
+- SQLite `raw_events` 加 `BEFORE INSERT/UPDATE` trigger，拒收来源 `source_intake_offline_review`，已有数据库重新初始化时补装。6 个新增合成负向测试包含直接 SQL、混合批次原子性、文件缓存、迁移。
+- Mac 全量离线回归 **359/359 passed**；从 Git HEAD 独立 `git archive` 构建的干净快照全量回归 **168/168 passed**。未调用外部模型、第三方 API 或收费 Worker。
+- **剩余安全边界**：当前挡的是明确标记为预览的对象及已知来源；有写入权限的恶意调用方仍可重造/改写 `RawEvent.source`。上线新平台真实数据前，还需可信发布端到端签名、审查分权和完整来源可验证链。**R3 用户验收仍未通过**。
+
+**请 Muse 做的事情**：审查 `44f0d49` 中 H2 拦截是否遗漏了生产写入口、数据库现有库迁移是否稳健、批量回滚/并发是否有漏洞，提供 `severity + file:line + minimal offline reproduction + patch`，不需要修改 Mac 文件或运行任何付费模型。
+
+**DSH 状态纠正**：用户认为 DSH 可能修复，但 Mac 于 02:35 实查 Bridge `dsh_available=false`；`ai.team.dsh` LaunchAgent 仍 disabled，`Grok` disabled，未出现新真实模型成功证据。Muse 最新 `muse/dsh-deadlock-fix` / `7cef86e` 主要修复目录价格格式及对应测试，并非之前 `/v2/chat/completions` HTTP 400 拦截的已验收修复。仍禁止未经用户新授权的第二次模型 preflight。
+
+---
+
 ## 2026-10-18｜Owner: ChatGPT｜Status: DSH_http400_offline_review_open / OpenCode_free_pool_committed
 
 **DSH 下一任务（Muse 优先）：只读代码检查，不发送任何额外模型请求。** 新鲜的 WorkBuddy AI 国际版免费目录 GET `/v3/config` 已验证，价格 `deepseek-v4.1-flash` 为 `x0.00`；但此前唯一一次真实模型预检经 `WorkBuddyUpstreamClient.chatStream()` 的 POST `/v2/chat/completions` 返回 HTTP 400 / `INVALID_REQUEST`，提示 `请求被拦截，请重新发送`。截至目前没有第二次请求，也未启动 DSH。
