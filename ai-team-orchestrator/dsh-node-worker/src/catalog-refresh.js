@@ -69,8 +69,11 @@ export function defaultFetcher({ host, endpoint, apiKey, timeoutMs = 30_000 }) {
 /**
  * 从目录响应中提取指定模型的免费资格。
  * 返回 { eligible: boolean, reason: string, model: object|null }
+ *
+ * 费用安全：价格字段缺失或为空 → 视为未知价格，拒绝（fail-closed）。
+ * 只有明确的 free=true + credits="x0.00" 才算免费。
  */
-export function checkModelFreeEligible(catalog, modelId) {
+export function checkModelFreeEligible(catalog, modelId, now = Date.now()) {
   if (!catalog || typeof catalog !== "object") {
     return { eligible: false, reason: "catalog_empty", model: null };
   }
@@ -81,9 +84,9 @@ export function checkModelFreeEligible(catalog, modelId) {
   }
   const billing = model.billing ?? {};
   const isFree = billing.free === true;
-  // credits 可能是 "x0.00" / 0 / "0.00" 等形式
-  const credits = String(billing.credits ?? model.credits ?? "");
-  const isZeroPrice = credits === "0" || credits === "0.00" || credits === "x0.00" || credits === "";
+  // 严格匹配：只有明确的 "x0.00" 才算零价格。空/缺失 → 未知价格 → 拒绝。
+  const credits = billing.credits ?? model.credits;
+  const isZeroPrice = credits === "x0.00";
 
   if (!isFree) {
     return { eligible: false, reason: "model_not_free", model };
@@ -91,11 +94,42 @@ export function checkModelFreeEligible(catalog, modelId) {
   if (!isZeroPrice) {
     return { eligible: false, reason: "model_not_zero_price", model };
   }
+  // 促销有效期检查：必须有 factor=0 且覆盖当前时间+10分钟的促销
+  const promotions = model.promotions;
+  const hasValidPromo = Array.isArray(promotions) && promotions.some((promo) =>
+    Number.isFinite(promo?.start) && Number.isFinite(promo?.end) &&
+    promo?.factor === 0 && promo.start <= now &&
+    promo.end >= now + 10 * 60 * 1000);
+  if (!hasValidPromo) {
+    return { eligible: false, reason: "free_promotion_expired_or_unverified", model };
+  }
   return { eligible: true, reason: "ok", model };
 }
 
+export const CATALOG_CACHE_VERSION = 1;
+export const CATALOG_ENTRY_SOURCE = "workbuddy-ai:app";
+export const CATALOG_ENTRY_KEY = "intl";
+
+/**
+ * 构建与门禁兼容的缓存快照格式：
+ * { version, entries: { <key>: { source, fetchedAtMs, models } } }
+ */
+export function buildCacheSnapshot({ models, fetchedAtMs }) {
+  return {
+    version: CATALOG_CACHE_VERSION,
+    entries: {
+      [CATALOG_ENTRY_KEY]: {
+        source: CATALOG_ENTRY_SOURCE,
+        fetchedAtMs,
+        models,
+      },
+    },
+  };
+}
 /**
  * 独立刷新目录。全部依赖可注入，支持完全离线测试。
+ * 写入的缓存格式与门禁 checkInternationalCatalog 兼容：
+ * { version, entries: { intl: { source, fetchedAtMs, models } } }
  *
  * @param {object} opts
  * @param {string} opts.host - WorkBuddy 国际站 host
@@ -127,13 +161,16 @@ export async function refreshCatalog({
     return { status: REFRESH_FAILED, reason: `fetch_error:${error.message}`, fetchedAtMs: null };
   }
 
-  const { eligible, reason } = checkModelFreeEligible(catalog, modelId);
+  const { eligible, reason } = checkModelFreeEligible(catalog, modelId, now());
   const fetchedAtMs = now();
 
   if (!eligible) {
     // 即使模型不免费，也写缓存（带时间戳），让门禁读到"新鲜但不合格"而非"过期"
     // 门禁会拒绝启动，这是正确的 fail-closed 行为
-    const snapshot = { fetchedAtMs, models: catalog.models ?? catalog.data ?? [], eligibility: { modelId, eligible, reason } };
+    const snapshot = buildCacheSnapshot({
+      models: catalog.models ?? catalog.data ?? [],
+      fetchedAtMs,
+    });
     try {
       await writeFile(cachePath, JSON.stringify(snapshot, null, 2), "utf-8");
     } catch {
@@ -142,11 +179,10 @@ export async function refreshCatalog({
     return { status: REFRESH_NOT_FREE, reason, fetchedAtMs };
   }
 
-  const snapshot = {
-    fetchedAtMs,
+  const snapshot = buildCacheSnapshot({
     models: catalog.models ?? catalog.data ?? [],
-    eligibility: { modelId, eligible: true, reason: "ok" },
-  };
+    fetchedAtMs,
+  });
   try {
     await writeFile(cachePath, JSON.stringify(snapshot, null, 2), "utf-8");
   } catch (error) {
@@ -157,13 +193,20 @@ export async function refreshCatalog({
 
 /**
  * 检查本地缓存是否新鲜（24h 内）。供调用方决定是否需要刷新。
+ * 读取与门禁兼容的格式：{ version, entries: { <key>: { fetchedAtMs } } }
  */
 export async function isCacheFresh({ cachePath = CATALOG_CACHE_PATH, now = Date.now, readFile = fs.readFile } = {}) {
   try {
     const raw = await readFile(cachePath, "utf-8");
     const snapshot = JSON.parse(raw);
-    const age = now() - (snapshot.fetchedAtMs ?? 0);
-    return { fresh: age >= 0 && age < CATALOG_MAX_AGE_MS, ageMs: age, fetchedAtMs: snapshot.fetchedAtMs ?? null };
+    const entries = snapshot.entries ?? {};
+    const first = Object.values(entries)[0];
+    const fetchedAtMs = first?.fetchedAtMs ?? null;
+    if (typeof fetchedAtMs !== "number") {
+      return { fresh: false, ageMs: Infinity, fetchedAtMs: null };
+    }
+    const age = now() - fetchedAtMs;
+    return { fresh: age >= 0 && age < CATALOG_MAX_AGE_MS, ageMs: age, fetchedAtMs };
   } catch {
     return { fresh: false, ageMs: Infinity, fetchedAtMs: null };
   }
