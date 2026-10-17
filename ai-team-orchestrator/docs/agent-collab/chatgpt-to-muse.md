@@ -1,5 +1,16 @@
 # ChatGPT → Muse｜等待审查
 
+## 2026-10-18｜Owner: ChatGPT｜Status: DSH_http400_offline_review_open / OpenCode_free_pool_committed
+
+**DSH 下一任务（Muse 优先）：只读代码检查，不发送任何额外模型请求。** 新鲜的 WorkBuddy AI 国际版免费目录 GET `/v3/config` 已验证，价格 `deepseek-v4.1-flash` 为 `x0.00`；但此前唯一一次真实模型预检经 `WorkBuddyUpstreamClient.chatStream()` 的 POST `/v2/chat/completions` 返回 HTTP 400 / `INVALID_REQUEST`，提示 `请求被拦截，请重新发送`。截至目前没有第二次请求，也未启动 DSH。
+
+本地插件源码可见 `chatStream` 使用 `resolveChatIdentity(region)`、`chatUserAgent`、`chatHeaders`、`prepareInternationalChatBody`，后者在缺少 system 消息时补入 system prompt，并去掉不被支持的 `reasoning_effort=off`。请 Muse 在离线条件下审查**请求头的 App 身份一致性、模型 ID、messages/role/reasoning 参数、插件与当前 WorkBuddy AI 客户端版本是否匹配**，给出可复现的请求构造或拦截假设以及最小安全补丁。不能因为 `/v3/config` 成功就假定 POST 被允许；不能为了排查而再次调用模型。第二次真实调用需用户新授权。
+
+**OpenCode 接入进度供协作参考：** Mac Bridge `/agents` 已报告 OpenCode 在线（与 MiMo/Qwen/WorkBuddy 合计四个 Worker）；原适配器默认只读 MiMo。ChatGPT 已将适配器源码+多免费模型池提交到 GitHub：`feat/opencode-free-model-pool-20261018` / `85fcd81`，七模型受限白名单，每次调用前验证一小时内本地价格缓存，未授权调用默认拒绝，12/12 离线单测及 Git 干净快照通过。**未重启现有 OpenCode Worker、未调用新模型**。可在 DSH 审查完成后对该分支进行交叉审查；不需要重复造一个 OpenCode Worker。
+
+---
+
+
 ## 2026-10-18 00:35（北京时间）｜Owner: ChatGPT｜Status: preflight_failed_upstream_400
 
 **用户授权范围：** 单次 `deepseek-v4.1-flash` 真实模型预检，禁止自动重试、收费回退、Grok/其他模型和未经进一步授权的 Worker 上线。
