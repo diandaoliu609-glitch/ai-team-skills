@@ -94,7 +94,6 @@ export async function waitForModel({
   preflight,
   bootstrapToken,
   retryIntervalMs = 30_000,
-  maxAttempts = Infinity,
   sleepImpl = sleep,
   logger = console,
 } = {}) {
@@ -106,7 +105,7 @@ export async function waitForModel({
   const token = requireBootstrapToken(bootstrapToken);
   const runPreflight = preflight ?? (() => runModelPreflight({}));
   let attempts = 0;
-  while (attempts < maxAttempts) {
+  while (attempts < 1) {
     attempts += 1;
     try {
       await runPreflight();
@@ -126,7 +125,7 @@ export async function waitForModel({
         })
         .catch(() => {});
       logger?.error?.(`DSH readiness: ${MODEL_UNAVAILABLE}: ${error.message}`);
-      if (attempts >= maxAttempts) return { ready: false, attempts, error };
+      if (attempts >= 1) return { ready: false, attempts, error };
       await sleepImpl(retryIntervalMs);
     }
   }
@@ -145,7 +144,6 @@ export async function startDshWorker({
   preflight,
   bootstrapToken,
   retryIntervalMs = 30_000,
-  maxAttempts = Infinity,
   sleepImpl = sleep,
 } = {}) {
   // Fail fast before the readiness loop; a missing token is a configuration
@@ -156,7 +154,6 @@ export async function startDshWorker({
     preflight,
     bootstrapToken,
     retryIntervalMs,
-    maxAttempts,
     sleepImpl,
   });
   if (!readiness.ready) return { started: false, readiness };

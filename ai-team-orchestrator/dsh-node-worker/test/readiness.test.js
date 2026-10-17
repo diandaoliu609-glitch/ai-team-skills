@@ -140,24 +140,59 @@ test("registration happens only after a successful preflight", async () => {
   assert.deepEqual(order, ["preflight", "readiness:available", "worker.start", "register"]);
 });
 
+test("DSH 启动 Promise 在 Worker 运行期间保持挂起，巡检不会提前清理", async () => {
+  const { startDshFromEnvironment } = await import("../src/index.js");
+  let markStarted;
+  let finishWorker;
+  const started = new Promise((resolve) => { markStarted = resolve; });
+  const running = startDshFromEnvironment({
+    client: fakeClient(),
+    bootstrapToken: TEST_TOKEN,
+    preflight: async () => {}, // 纯模拟：绝不请求真实模型
+    workerFactory: () => ({
+      async start() {
+        await new Promise((resolve) => {
+          finishWorker = resolve;
+          markStarted();
+        });
+      },
+    }),
+  });
+  await started;
+  let completed = false;
+  const observed = running.then((result) => {
+    completed = true;
+    return result;
+  });
+  await Promise.resolve();
+  assert.equal(completed, false, "worker.start 未结束前，入口 Promise 不能完成");
+  finishWorker();
+  const result = await observed;
+  assert.equal(result.started, true);
+  assert.equal(completed, true);
+});
+
 test("an unhealthy model never reaches the worker factory", async () => {
   let factoryCalls = 0;
+  let preflightCalls = 0;
   const client = fakeClient();
   await startDshWorker({
     client,
     bootstrapToken: TEST_TOKEN,
     preflight: async () => {
+      preflightCalls += 1;
       throw new Error("boom");
     },
     workerFactory: () => {
       factoryCalls += 1;
       return { async start() {} };
     },
-    maxAttempts: 2,
+    maxAttempts: 3,
     sleepImpl: async () => {},
   });
   assert.equal(factoryCalls, 0);
-  assert.equal(client.readiness.length, 2);
+  assert.equal(preflightCalls, 1);
+  assert.equal(client.readiness.length, 1);
   assert.ok(client.readiness.every((entry) => entry.modelAvailable === false));
 });
 
