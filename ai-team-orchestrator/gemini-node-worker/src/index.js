@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { access, readFile } from "node:fs/promises";
 import { createInterface } from "node:readline";
 import { AgentWorker, BridgeClient } from "../../node-worker/src/index.js";
+import { assertGeminiOAuthReady, oauthOnlyEnvironment } from "./oauth-guard.js";
 import {
   DEFAULT_PREFLIGHT_TIMEOUT_MS,
   READINESS_PROMPT,
@@ -93,7 +94,7 @@ function buildGeminiArgs(prompt, outputFormat) {
     "--output-format",
     outputFormat,
     "--approval-mode",
-    process.env.GEMINI_APPROVAL_MODE || "auto_edit",
+    process.env.GEMINI_APPROVAL_MODE || "plan", // 订阅恢复阶段默认只读
   ];
   const model = (process.env.GEMINI_MODEL || "").trim();
   if (model) args.push("--model", model);
@@ -110,10 +111,13 @@ export async function runGeminiPrompt({
   onEvent = async () => {},
   geminiBin = resolveGeminiBin(),
   timeoutMs = GEMINI_TASK_TIMEOUT_MS,
+  authGate = assertGeminiOAuthReady,
 } = {}) {
+  // 每次预检及任务均需确认使用账号订阅渠道，而非另收费的 API Key。
+  await authGate();
   const child = spawn(geminiBin, buildGeminiArgs(prompt, outputFormat), {
     cwd: task.workspace,
-    env: { ...process.env },
+    env: oauthOnlyEnvironment(process.env),
     stdio: ["ignore", "pipe", "pipe"],
   });
 
@@ -339,6 +343,7 @@ export async function startGeminiFromEnvironment({
   workerFactory = () => createWorker(),
   ...rest
 } = {}) {
+  await assertGeminiOAuthReady();
   const token = requireBootstrapToken(
     bootstrapToken === undefined ? await resolveBootstrapToken() : bootstrapToken,
   );

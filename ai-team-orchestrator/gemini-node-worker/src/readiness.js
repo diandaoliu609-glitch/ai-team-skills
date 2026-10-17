@@ -68,7 +68,7 @@ export async function waitForModel({
   preflight,
   bootstrapToken,
   retryIntervalMs = 30_000,
-  maxAttempts = Infinity,
+  maxAttempts = 1, // 失败一次即停，不后台循环模型预检
   sleepImpl = sleep,
   logger = console,
 } = {}) {
@@ -112,7 +112,7 @@ export async function startGeminiWorker({
   preflight,
   bootstrapToken,
   retryIntervalMs = 30_000,
-  maxAttempts = Infinity,
+  maxAttempts = 1, // 失败一次即停，不后台循环模型预检
   sleepImpl = sleep,
 } = {}) {
   requireBootstrapToken(bootstrapToken);

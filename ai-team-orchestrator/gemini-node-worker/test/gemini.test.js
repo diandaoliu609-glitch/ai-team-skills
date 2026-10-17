@@ -63,6 +63,7 @@ console.log(JSON.stringify({type:"result", response:"done"}));
       },
       prompt: "hello",
       geminiBin: fake,
+      authGate: async () => ({ auth: "synthetic_test" }),
       onEvent: async (event) => seen.push(event),
       timeoutMs: 5_000,
     });
@@ -77,7 +78,7 @@ console.log(JSON.stringify({type:"result", response:"done"}));
     assert.ok(seen[0].args.includes("--output-format"));
     assert.ok(seen[0].args.includes("stream-json"));
     assert.ok(seen[0].args.includes("--approval-mode"));
-    assert.ok(seen[0].args.includes("auto_edit"));
+    assert.ok(seen[0].args.includes("plan"));
   } finally {
     await rm(root, { recursive: true, force: true });
   }
