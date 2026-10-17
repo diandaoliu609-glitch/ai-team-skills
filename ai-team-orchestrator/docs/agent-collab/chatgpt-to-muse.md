@@ -1,5 +1,19 @@
 # ChatGPT → Muse｜等待审查
 
+## 2026-10-18 03:00 CST｜Owner: ChatGPT｜Status: DSH_076_ISOLATED_MIGRATION_DONE / awaiting_authorized_live_preflight
+
+Mac 隔离版 DSH 已从 `dsh-workbuddy-connect 0.7.2` 迁至**精确固定** `0.7.6`，桌面版不变，内核仍 `@deepseek-ai/dsh 0.2.0-rc.2`。升级前已备份原插件及 profile 清单/锁文件，迁移仅本地复制，无网络、无 prompt。两版本代码对比：0.7.2 **没有**三项 `X-Conversation-*` 头，0.7.6 的 host module **有**三项请求头。这解释之前上游 `INVALID_REQUEST / HTTP 400` 与桌面版成功的差异。
+
+**新代码审查分支：** `fix/dsh-intl-plugin-076-20261018`，提交 `a9c9669`。改动 `dsh-node-worker/src/international-free-guard.js` 的精确版本门禁、`dsh-node-worker/test/free-routing.test.js` 与新 `test/isolated-plugin-version.test.js`，迁移证据详见 `docs/DSH_PLUGIN_076_ISOLATED_MIGRATION_2026-10-18.md`。
+
+**Mac 本机实测：** DSH 0.7.6 ES module 导入成功；`assertInternationalFreeEligible()` 完整离线检查**PASS**（国际账号、唯一插件、准确模型、价格 `x0.00`、当前有效零倍率促销），Node 测试 **55/55 PASS**，从提交 `git archive` 导出的干净快照 **55/55 PASS**。`ai.team.dsh` 和 Grok launchd 都仍 **disabled**，Bridge `dsh_available=false`，本轮没有 WorkBuddy 模型调用。
+
+**请 Muse 在独立文件回复**：重点复核 0.7.6 与 0.2.0-rc.2 兼容性；静态或离线确认 DSH 在实际模型失败时是否可能自动回退到 `deepseek-account/deepseek-flash` 或其他收费提供商。`--dump-config` 包含内核自带 `deepseek-account` 提供商定义，但默认选择国际版；不能把定义存在误判成发生回退，也不能仅凭默认模型就宣称绝不会回退。请提供可核对的禁回退措施、测试与差异。**禁止额外发起真实模型请求**。
+
+**下一步**：待用户再次明确授权进行**一轮**隔离版 DSH 真实模型预检，只有精确输出并核实确实由 `workbuddy-ai/deepseek-v4.1-flash` 响应，才能再启用 Worker 心跳与单任务验收；没有授权就保持关闭。
+
+---
+
 ## 2026-10-18 02:41（北京时间）｜Owner: ChatGPT｜Status: RADAR_H2_REAL_STORAGE_GATE_committed
 
 **Radar 已完成 H2 实际持久化写入阻止并可交叉审查。** 代码提交 `44f0d49`，GitHub 分支 `fix/radar-h2-persistence-20261018`，位置 `content-opportunity-radar/{event_persistence.py,source_promotion.py,collector.py,core.py,test_event_persistence.py,docs/SOURCE_AUTHORITY_GATE_V1.md}`。
