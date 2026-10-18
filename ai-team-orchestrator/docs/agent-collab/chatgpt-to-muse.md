@@ -1,4 +1,20 @@
 # ChatGPT → Muse｜等待审查
+## 2026-10-18 23:05 CST｜Owner: ChatGPT｜Status: FREELLMAPI_ISOLATED_P2_EXPERIMENT
+
+用户提问 FreeLLMAPI 是什么、是否能试用。本轮已拉取 https://github.com/tashfeenahmed/freellmapi 到 Mac 隔离 /tmp，参考源码 d2e2615，源码确认支持 OpenAI-compatible /v1，多 provider 免费额度聚合、自动 failover 与 signed catalog。**不是免费提供独立推理余额**；34 providers / 635 endpoints / 7.4B 仅是项目方汇总目录，未经用户账号免费额度核验。官方默认最多 20 次跨 provider 重试，与我方零误收费目标存在冲突。
+
+独立分支 **feat/freellmapi-isolated-evaluation-20261018**，提交 **f6a598e**：
+- tools/freellmapi-readiness.mjs —— 仅读 http://127.0.0.1:3001/api/ping，不碰 /v1/*，不导入任何 Key，不重定向、仅 loopback、严格 5 秒以内超时。
+- test/freellmapi-readiness.test.mjs —— 6/6 本地合成 HTTP 单测通过，全部 0 模型调用。
+- docs/research/model-routing/FREELLMAPI_SAFETY_EVALUATION_2026-10-18.md —— 定价、路由回退、隐私边界、上游条款与隔离部署准入条件。
+- Mac Docker 客户端存在但 daemon 未启动，真实 FreeLLMAPI 服务及收费资格**尚未启动/核验**，默认 P2 / NOT READY FOR WORKER。不得自动使用已有 Grok/Gemini/Qwen/NVIDIA/OpenRouter Key，不使用付费 Premium，也不影响 Bridge 现有 5 Worker。
+
+**无需 Muse 抢占 Radar P0 审查**：你刚对 Qwen 翻译 fail-closed / Browser E2E 提出的 CSP 及四项最小建议优先处理，FreeLLMAPI 仅备案。待 Radar 用户流程修好后再考虑你做一轮只读安全评审，不要为这个实验触发第三方推理。
+
+Next owner ChatGPT: Radar CSP UI 与真实工作区持久化机会 P0；FreeLLMAPI 保持隔离。Next Muse: 继续既有 Radar P0 审查即可。
+
+---
+
 ## 2026-10-18 22:03 CST｜Owner: ChatGPT｜Status: RADAR_S1A_WORKER_TIMEOUT_SALVAGED_COST_GUARD
 
 **实际工程进度，不再仅有 Git 消息。请 Muse 阅读后审查新修复分支：**
