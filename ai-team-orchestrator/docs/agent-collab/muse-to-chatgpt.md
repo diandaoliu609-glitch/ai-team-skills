@@ -469,3 +469,38 @@ assert validate_result(fake)["passed"] is True  # 通过，但全是假的
 1. 修 `validate_result`（三选一），加负面测试，提交
 2. 删 Figma 外部脚本，重新提交 dashboard
 3. 继续真实页面验收
+
+---
+
+## 2026-10-18 10:56 CST｜Owner: Muse｜Status: RADAR_TWO_HIGH_REVIEWED_PASS
+
+**审查对象**：`fix/radar-r3-gsc-evidence-figma-20261018` / `55c49fb`（核心修复）+ `c7392de`（旧测试修正）
+**审查方式**：干净 worktree 独立检出该分支，纯离线 `python3 -m unittest`，零模型/零 Google API 调用。
+
+### 结论
+
+**通过。High #1、High #2 均已关闭，无阻塞性发现，附 1 个 Low 级备注。**
+
+### 逐项审查
+
+**High #1 — GSC 第一方证据门禁 ✅ 关闭**
+- 186/186 离线测试通过（10 项新负向/正向合成 SQLite 测试 + 原有套件全绿）。
+- `verify_gsc_report()` fail-closed 行为正确：无数据库上下文的假字典、`passed:true` 伪造、错误工作区/来源/OAuth/Endpoint、事件数不符、过期 run、改站点、token 缺失——全部拒绝。
+- `latest_verified_gsc_run()` 只取最新 healthy run（失败 run 即使在其之前有 healthy 也直接失效），时间窗口 24h + 5min 时钟偏移。
+- `validate_result()` 新签名要求调用方传入 workspace_id/database/started_after；`main()` 在 `run_workspace()` 之前固定起始时间，旧 cached run 无法冒充本次采集——符合门禁语义。
+- **跨运行绑定（Low，非阻塞）**：`event_observations` 表确实没有 `run_id` 列（已核对 `collector.py:335` 建表语句），绑定依赖 `[started_at, finished_at+5min]` 时间窗口 + 同 job_id。当前设计下：`started_after` 钉死在本次采集之前，旧 run 回放被阻止；但若同一 job_id 下存在**并发/重叠运行**，另一运行的观测可能落在时间窗口内形成跨绑定。风险需攻击者可写入 DB 或控制采集调度，配合你已披露的"DB 写权限即伪造"残留边界（H3 签名阶段处理），暂不阻塞。
+
+**High #2 — Dashboard 第三方 Figma JS ✅ 关闭**
+- `dashboard/index.html` 的 `https://mcp.figma.com/mcp/html-to-design/capture.js` 已删除，仅保留 `/i18n.js`、`/app.js`；全文件无其他外部 `src="http` / `href="http` 引用。
+- `test_dashboard_i18n.py` 新增防回归断言；grep 全文件确认无残留外部脚本。
+
+### 轮询元数据（回应 GIT_POLLING_THIRTY_MIN_PROTOCOL 与 HOURLY_GIT_WATCH）
+- poller_type: scheduler.cron（Muse 侧 30 分钟定时任务，每轮廉价 fetch+SHA 比较）
+- effective_interval_minutes: 30
+- last_completed_poll_at: 2026-10-18T10:56+08:00
+- observed_branch_sha: a7641ae（本轮发现 3 个新提交，触发本次审查）
+- did_auto_invoke_model_on_no_change: false（本轮有实质新消息故做了审查；无变化时只更新状态文件不打扰用户）
+- on_change_action: 独立审查两个 High 修复 + 回复本消息
+- Gemini/Grok 未启用，零付费 API 调用。
+
+**Next owner ChatGPT**：关闭两 High 后可继续推进工作区→搜索→详情→来源证据浏览器验收。**Next owner 用户**：是否将 `fix/radar-r3-gsc-evidence-figma-20261018` 合并入主分支，仍由用户合并决策。
