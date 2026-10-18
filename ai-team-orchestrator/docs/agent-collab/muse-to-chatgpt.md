@@ -504,3 +504,56 @@ assert validate_result(fake)["passed"] is True  # 通过，但全是假的
 - Gemini/Grok 未启用，零付费 API 调用。
 
 **Next owner ChatGPT**：关闭两 High 后可继续推进工作区→搜索→详情→来源证据浏览器验收。**Next owner 用户**：是否将 `fix/radar-r3-gsc-evidence-figma-20261018` 合并入主分支，仍由用户合并决策。
+
+---
+
+# Muse → ChatGPT｜付费翻译 fail-closed 修复审查（2026-10-18）
+
+**时间（北京时间）：2026-10-18 22:32｜Owner: Muse｜Status: reviewed_with_findings**
+
+**审查对象**：`fix/radar-translation-paid-guard-20261018` / `08fa9b0`、`2a7a040`
+**审查方式**：Git 只读 + 离线单测（未运行真实 Qwen/GSC；Gemini/Grok 禁用）
+
+## 结论
+
+**通过，有 4 个建议（非阻塞），全部是最小 patch 级别。** fail-closed 设计正确、缓存路径与费用路径解耦、报告口径诚实。
+
+离线验证：`test_translation_paid_guard.py` 2/2 在本机独立运行通过（Python unittest，0 网络）。
+
+## 逐项审查
+
+### 1. `translation.py`（08fa9b0）——付费门禁 ✅
+- `_call_provider`（L170-173）在读 key / 开网络**之前**先校验 `RADAR_TRANSLATION_PAID_API_APPROVED == "1"`，缺省 `ValueError(paid_translation_not_approved)`。key 文件存在 ≠ 授权：`_api_key()`（L86-100）只在门禁通过后被调用。顺序正确，真正的 fail-closed。
+- 缓存路径（`_cached` / `_store`，sqlite3 参数化查询）完全不依赖门禁，缓存命中即返回——已缓存翻译照常工作，无副作用。
+- 请求体量上限（40 条/1600 字符/16000 字符总量）与 `response_format: {"type":"json_object"}` + 数组长度校验（L229-232）都在，供应商返回畸形时 `RuntimeError` 而不是静默截断。
+
+### 2. `browser_e2e_s1a.mjs`（2a7a040）——CDP 隔离 ✅
+- `Fetch.enable` 全量拦截（L308），`isAllowedUrl`（L50-57）只放行 hostname 严格 `127.0.0.1` 的 http/https；ws 一律拒。L316 额外校验 `parsedUrl.origin === BASE_URL.origin`。
+- `POST /v1/lite/translate` 在浏览器内本地 fulfill（L318-342，`provider:"local-e2e-mock"`，原样回显原文、translated_count:0）；其余写操作 403（L344-351）。`writeAttempts` 审计（L618）排除了 mocked 项。**17 次翻译 POST 被 mock、真实后端 POST 为 0 的说法与代码一致。**
+
+### 3. 报告口径 ✅ 诚实，无需改口
+- `BROWSER_S1A_ACCEPTANCE_2026-10-18.md` 如实保留了 DSH 任务 FAILED（300s 超时）、16/1/1、退出码 1、R3 0/4，未把结果算作 DSH completed。
+- FAIL 项是"指定工作区无持久化机会"，文档明确归因到数据链（"不能直接推定 UI 代码损坏"）——**没有把 empty workspace 夸大为 UI 崩溃**，符合要求。
+- 第一次实测的 8 条新增 Qwen 缓存（费用未知）如实记录为风险而非"零费用"。可信度：代码逻辑已复核；Mac 本地 8787 的 400/缓存 71→71 实测为 ChatGPT 侧观察，本轮无法独立复现，计为未验证项，不影响结论。
+
+### 4. 建议（非阻塞，4 项）
+
+**建议 1 — 负面测试补一个正向通道**（最小）：现有两个测试覆盖"缺许可必拒绝"。建议加一个"许可+mock urlopen"测试：`RADAR_TRANSLATION_PAID_API_APPROVED=1`，`patch("translation.request.urlopen")` 返回假 JSON，断言 key 从临时 key 文件读取、urlopen 被调用 1 次。防止未来有人把门禁改成"永远拒绝"而无人发现。
+
+**建议 2 — CSP inline-style 三处最小修复**（不放宽 `style-src 'self'`，CSP 在 `api.py:95-96`）：
+- `dashboard/app.js:398` `fill.style.width`（进度条）→ 改为 SVG `<rect width="n">`（presentation attribute 不被 style-src 拦截），或改用 `data-w` + 外部样式表的 5% 分段类。
+- `dashboard/app.js:458` `line.style.color` / `:467` `dot.style.color`（SVG）→ 外部样式表加 `.chart-line{stroke:var(--accent)}`、`.chart-dot{fill:var(--accent-2)}`，JS 里改 `classList` 即可。
+
+**建议 3 — 翻译缓存 key 未含 source 语言**：`_cache_key`（L102-104）只混合了 model+target+text。若同一文本被用作多源语言输入，语义相同所以无错，但若未来引入源语言检测逻辑，建议 key 中预留 source 语言位，避免隐性误命中。
+
+**建议 4 — `translate()` 的 `translated_count` 语义**：返回字典中 `translated_count` 实际是"本次网络翻译条数"（L250），缓存命中不计。命名上容易被误读为"累计"。建议改名为 `freshly_translated` 或在文档中注明，避免验收时误判。
+
+## 轮询元数据
+- poller_type: scheduler.cron（Muse 侧 30 分钟定时任务）
+- last_completed_poll_at: 2026-10-18T22:32+08:00
+- observed_branch_sha: cb7e616（本轮发现 1 个新提交，触发本次审查）
+- did_auto_invoke_model_on_no_change: false（有实质审查请求故做了审查）
+- offline_tests: 2/2 pass（test_translation_paid_guard）
+- Gemini/Grok 未启用，零付费 API 调用。
+
+**Next owner ChatGPT**：直接修 CSP UI（建议 2 的最小方案）、继续工作区真实数据链；建议 1/3/4 可随手带上。**Next owner 用户**：无阻塞，无需决策。
