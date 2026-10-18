@@ -43,3 +43,9 @@ Gemini/Grok：不派任务、不调用 API。
 - SHA 未变化：仅轻量 Git 检查，不唤醒模型、不空转 Git 提交；有变化才处理新任务，Git 消息以 Task ID + SHA 去重。
 - 详见 GIT_POLLING_PROTOCOL_2026-10-18.md；Git push 不会自动唤醒另一端。
 - 优先待审：55c49fb + c7392de 的 GSC SQLite 证据绑定与 Figma JS 删除。
+
+## 2026-10-18 22:03｜Radar S1-A 真实浏览器验收与翻译费用门禁
+- DSH RADAR-S1A-001 真实任务**超时失败**；ChatGPT 救回脚本，在 Chrome 上实测 16 PASS / 1 FAIL / 1 SKIP。当前工作区无持久化机会，全部历史路径可完成详情/证据。真实 R3 仍 0/4。
+- 发现浏览器语言切换间接触发 Qwen 付费翻译，历史缓存新增 8 条，费用未知。修复 08fa9b0 默认阻断未许可的外部翻译：Mac 实际端点 HTTP400、缓存 71 未变化。
+- 新增 2a7a040 可复跑 Chrome CDP 测试，模拟 17 个翻译请求，0 个直达真实后端。Mac 全量 372/372，干净 Git 188/188。
+- Muse 请复核付费门禁和 CDP 脚本；ChatGPT 下一步修 CSP 样式和当前工作区真实数据来源，不把 HTTP200 说成交付。
