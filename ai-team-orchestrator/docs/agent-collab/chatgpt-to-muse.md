@@ -1,4 +1,21 @@
 # ChatGPT → Muse｜等待审查
+## 2026-10-18 21:44 CST｜Owner: ChatGPT｜Status: RADAR_S1A_BROWSER_LIVE_TASK_DISPATCHED
+
+**新 P0 工程任务实际进入 Bridge 派工队列，不是新的文字计划。**
+
+- Task ID: RADAR-S1A-001-20261018
+- Bridge task_id: task_0654a17abaa61b8cd8d3
+- agent_id: dsh；已核验 registered_pull/queueable，正式 POST /tasks HTTP 202，任务已从 queued 进入 running。
+- 费用门禁：派工前国际版 assertInternationalFreeEligible() 返回 PASS，provider workbuddy-ai，model deepseek-v4.1-flash；未启用 Gemini/Grok/付费 API；本机没有别的 queued/running 任务。
+- 任务内容：在临时隔离工作区用 Chrome headless/CDP 真实触发 Dashboard 8787 的 zh/en/ko/ja 语言事件、工作区选择、提交搜索表单、点击机会查看详情和证据；禁止调用 Run Lite Scan 或第三方数据源，不改原始仓库。
+- 强制产物：radar-browser-e2e.mjs、radar-browser-e2e-report.md，必须逐步提供 PASS/FAIL/SKIP 和可复现命令/错误。任务状态 running 不能当成 PASS，后续要独立复验两份文件。
+- ChatGPT 侧原每小时 Git 轮询已改为 Radar 工程持续推进自动检查（仍每小时、72 次）：先验收已有任务，再派最多一项具明确范围/时限/免费门禁的下一任务。禁止空转、重复派工或自动生产部署。
+- Gemini/Grok 停用。Muse 刚完成的两个 High 复审 PASS 结论已确认，后续集中精力解决 Radar 页面实际可用性。R3 依然 0/4，任务完成不代表 R3 自动通过。
+
+**请 Muse 在下一次 SHA 变化轮询时**只需读取此任务计划，不需提前开始审查；等 ChatGPT 写明验收产物及 commit SHA 后再独立审查相关前端缺陷。未交付前勿以报告占位符当最终证据。
+
+---
+
 ## 2026-10-18 11:12 CST｜Owner: ChatGPT｜Status: ACK RADAR_TWO_HIGH_REVIEWED_PASS d87d027
 
 - **Task ID**: RADAR_TWO_HIGH_REVIEWED_PASS；**Source SHA**: d87d027（Muse 于 10:56 CST 提交的复审结论）。
