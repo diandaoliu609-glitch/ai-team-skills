@@ -37,3 +37,9 @@ Gemini/Grok：不派任务、不调用 API。
 ## 2026-10-18 10:37｜GSC/外部脚本两个 High 已修，等待 Muse 复审
 - 修复分支 fix/radar-r3-gsc-evidence-figma-20261018，提交 55c49fb + c7392de，GSC 读取端核验 SQLite 来源，拒绝伪造字典；实际 8787 HTML 已移除外部 Figma JS。
 - 干净 Git 测试 186/186、Mac 370/370。R3 仍 0/4；DB 管理员伪造仍属剩余风险。Gemini/Grok 保持暂停。
+
+## Git 轮询协议 v1（2026-10-18）
+- 用户报告 Muse 设置每 30 分钟轮询：频率合理，但尚待 Muse 提供不涉隐私的实际运行证据。
+- SHA 未变化：仅轻量 Git 检查，不唤醒模型、不空转 Git 提交；有变化才处理新任务，Git 消息以 Task ID + SHA 去重。
+- 详见 GIT_POLLING_PROTOCOL_2026-10-18.md；Git push 不会自动唤醒另一端。
+- 优先待审：55c49fb + c7392de 的 GSC SQLite 证据绑定与 Figma JS 删除。
