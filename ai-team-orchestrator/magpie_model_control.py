@@ -81,7 +81,7 @@ def fetch_bridge_agents(*, bridge_url: str = DEFAULT_BRIDGE) -> list[dict[str, A
                 and item.get("available") is True
                 and item.get("queueable") is True
             ),
-            "paused": worker in HARD_PAUSED,
+            "paused": worker.lower() in HARD_PAUSED,
         })
     return result
 
@@ -121,7 +121,7 @@ def validate_manifest(policy: Mapping[str, Any]) -> tuple[dict[str, Any], ...]:
                 raise PolicyError(f"{name}_invalid")
             if value.lower() in ("auto", "fallback", "any", "all"):
                 raise PolicyError("automatic_route_disallowed")
-        if route["worker"] in HARD_PAUSED:
+        if route["worker"].lower() in HARD_PAUSED:
             raise PolicyError("paused_worker_disallowed")
         if route["billing"] != "verified_free":
             raise PolicyError("unverified_or_paid_route_disallowed")
@@ -174,10 +174,21 @@ def plan_model_access(
     if current.tzinfo is None:
         raise PolicyError("now_timezone_invalid")
     current = current.astimezone(timezone.utc)
+    if not isinstance(roster, list) or len(roster) > 128:
+        raise PolicyError("roster_invalid")
     eligible = []
     for agent in roster:
+        if (not isinstance(agent, dict)
+                or set(agent) != {"worker", "online", "paused"}
+                or not isinstance(agent["worker"], str)
+                or not MODEL_ID.fullmatch(agent["worker"])
+                or type(agent["online"]) is not bool
+                or type(agent["paused"]) is not bool):
+            raise PolicyError("roster_entry_invalid")
         worker = agent["worker"]
-        active = agent["online"] is True and not agent["paused"]
+        # 防止编程式传入的 roster 假称暂停的 Worker 已恢复。
+        paused = agent["paused"] or worker.lower() in HARD_PAUSED
+        active = agent["online"] and not paused
         matches = []
         for route in routes:
             if route["worker"] != worker:
@@ -189,12 +200,12 @@ def plan_model_access(
         eligible.append({
             "worker": worker,
             "online": agent["online"],
-            "paused": agent["paused"],
+            "paused": paused,
             "free_routes_pending_runtime_check": matches,
             # 离线配置证据无法保证上游真实账单。二次实时校验前始终不能派工。
             "dispatch_allowed": False,
             "reason": "live_freeguard_required" if matches else
-                      ("worker_paused" if agent["paused"] else
+                      ("worker_paused" if paused else
                        "model_evidence_missing_or_worker_offline"),
         })
     return {

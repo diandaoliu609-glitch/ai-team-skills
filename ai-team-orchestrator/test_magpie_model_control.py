@@ -68,6 +68,38 @@ class ModelGuardTests(unittest.TestCase):
                 with self.assertRaisesRegex(PolicyError, "paused_worker_disallowed"):
                     validate_manifest(manifest(route))
 
+    def test_paused_worker_case_variants_are_rejected(self):
+        for worker in ("Gemini", "GEMINI", "gRoK", "GROK"):
+            route = good_route()
+            route["worker"] = worker
+            with self.subTest(worker=worker):
+                with self.assertRaisesRegex(PolicyError, "paused_worker_disallowed"):
+                    validate_manifest(manifest(route))
+
+    def test_roster_case_variants_remain_paused_even_if_input_claims_unpaused(self):
+        result = plan_model_access(
+            [{"worker": "GEMINI", "online": True, "paused": False},
+             {"worker": "gRoK", "online": True, "paused": False}],
+            manifest(), now=NOW,
+        )
+        self.assertTrue(all(w["paused"] for w in result["workers"]))
+        self.assertTrue(all(w["reason"] == "worker_paused" for w in result["workers"]))
+        self.assertTrue(all(w["dispatch_allowed"] is False for w in result["workers"]))
+
+    def test_roster_malformed_fails_closed_with_policy_error(self):
+        malformed = (
+            None, {}, "not-list", [None], [{}],
+            [{"worker": "dsh", "paused": False}],
+            [{"worker": "dsh", "online": "true", "paused": False}],
+            [{"worker": "dsh", "online": True, "paused": 0}],
+            [{"worker": "../bad", "online": True, "paused": False}],
+            [{"worker": "dsh", "online": True, "paused": False, "api_key": "fake"}],
+        )
+        for roster in malformed:
+            with self.subTest(roster=roster):
+                with self.assertRaises(PolicyError):
+                    plan_model_access(roster, manifest(), now=NOW)
+
     def test_any_paid_or_unknown_billing_is_rejected(self):
         for billing in ("paid", "unknown", "trial", "subscription", "free", "auto"):
             route = good_route()
