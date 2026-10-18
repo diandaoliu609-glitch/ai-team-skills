@@ -50,3 +50,13 @@
 - https://github.com/tashfeenahmed/freellmapi/blob/main/docs/en/install/01-install.md
 - https://github.com/tashfeenahmed/freellmapi/blob/main/docs/en/architecture/00-high-level-index.md
 - https://freellmapi.co/pricing
+
+
+## 2026-10-18 夜间：获准后的隔离部署实测与恢复
+
+- Docker Engine v27.3.1 在用户授权后曾临时启动；创建了专用 internal=true 网络 ai-team-freellmapi-offline，没有容器加入，没有运行 FreeLLMAPI 模型服务。
+- 官方 GHCR 镜像共尝试三次拉取，每次在下载大镜像层期间超时，因此镜像未完整到位、3001 端口没有服务，真实推理为 0。
+- 已编写 tools/freellmapi-lab.sh（语法检查通过）；只能手动启动、强制已存在官方镜像、内部网络和回环端口、无自动重启、不给模型 Key、非 root 身份与临时数据盘。此脚本尚未经过真实容器启动测试，不可视为可用部署。
+- **重要环境副作用**：启动 Docker Desktop 后，原有 Dify 容器随 Docker 引擎恢复启动，部分旧容器公开绑定 0.0.0.0:80/443/5003。发现后使用 AppleScript 对 com.docker.docker 退出，确认后台 docker backend 进程停止、80/5003 不再监听；AI Team Bridge 8765 保持 5 Worker 在线。
+- **今后启动 Docker 前先评估旧容器自动恢复行为**；不能以为新 FreeLLMAPI 容器仅监听 loopback 就代表整个 Docker Desktop 没有其他公网端口。无需用户再次批准时不得再启动 Docker daemon 或重新开启旧容器。
+- 既有 Git / Radar 文件未覆盖，未导入任何 API Key、未发生付费模型调用；FreeLLMAPI 服务状态仍 NOT RUNNING / NO-GO。
