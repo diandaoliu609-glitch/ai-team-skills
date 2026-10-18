@@ -1,4 +1,22 @@
 # ChatGPT → Muse｜等待审查
+## 2026-10-19 00:10 CST｜Owner: ChatGPT｜Status: MAGPIE_MODEL_CONTROL_V1_REVIEW
+
+**用户指令：先吸收 yetone/magpie（模型/Agent 配置控制台）理念，而不是 sshaipowered/magpie 对话产品。工程成果已推送独立分支，请只读排队审查。**
+
+- 分支：feat/magpie-model-control-v1-20261018
+- commit：b228938
+- https://github.com/diandaoliu609-glitch/ai-team-skills/tree/feat/magpie-model-control-v1-20261018
+- 代码：ai-team-orchestrator/magpie_model_control.py、test_magpie_model_control.py、docs/research/model-routing/MAGPIE_ADOPTION_V1_2026-10-18.md、空白 model-policy.example.json。
+- 测试：test_magpie_model_control 16/16 PASS；额外与现有 test_team_supervisor + test_readiness 组合回归 29/29 PASS；git diff --check 与简单敏感凭据扫描无告警。
+- 真实 Mac Bridge GET /agents 只读证据：5 Worker 在线（dsh/opencode/mimo/qwen/workbuddy）、Gemini/Grok 在新模型控制视图中强暂停。所有路由默认无证据，因此新模块 dispatch_allowed=false，actual_model_calls=0、actual_config_writes=0。**未修改生产 Bridge 或 Worker 配置，未引入 Magpie 自有网关或新增模型。**
+- 主要吸收：统一在线/模型费用状态、精确模型白名单、24 小时免费证据保鲜、禁止 auto/fallback/multi retry、凭据字段与外部 Bridge URL fail-closed；即使“验证通过”也只返回 pending_runtime_check，生产派工仍需实时 FreeGuard。
+- **边界很重要**：当前 manifest 中官方条款链接和 account_quota_checked 标志只是待验证声明，不能当上游真实账单证明；本模块完全没有派工能力。Magpie 完整仓库 shallow clone 因 Mac 网络超时，本轮参考官方 README、reference、integrating 和局部源码，未宣称全仓审计。MIT 项目但只借鉴思路，未复制源文件。
+- **请 Muse 审查**：攻击者通过非法 manifest 或 Bridge 响应伪造免费额度、错误把 Gemini/Grok 放回计划、timestamp/URL 解析 bypass、只读实现是否可能修改真实配置；必要时提供最小负面测试。不能为了 Magpie 审查发送外部模型请求。
+- **优先级提醒**：Radar S1-A 实际用户路径与持久化机会数据链仍是 P0；你上一轮 3591413 提到的 CSP 三处样式问题与翻译缓存门禁继续优先。Magpie 只排 P1/P2 安全审查，不抢占 Radar。
+- Next owner Muse：有空时审查 b228938，写入 muse-to-chatgpt.md 的 PASS/CHANGES_REQUESTED 与准确 file:line。Next owner ChatGPT：继续 Radar P0；等待 Magpie 安全复核再考虑 Supervisor 真派工接入。
+
+---
+
 ## 2026-10-18 23:05 CST｜Owner: ChatGPT｜Status: FREELLMAPI_ISOLATED_P2_EXPERIMENT
 
 用户提问 FreeLLMAPI 是什么、是否能试用。本轮已拉取 https://github.com/tashfeenahmed/freellmapi 到 Mac 隔离 /tmp，参考源码 d2e2615，源码确认支持 OpenAI-compatible /v1，多 provider 免费额度聚合、自动 failover 与 signed catalog。**不是免费提供独立推理余额**；34 providers / 635 endpoints / 7.4B 仅是项目方汇总目录，未经用户账号免费额度核验。官方默认最多 20 次跨 provider 重试，与我方零误收费目标存在冲突。
