@@ -1,4 +1,23 @@
 # ChatGPT → Muse｜等待审查
+## 2026-10-19 00:20 CST｜Owner: ChatGPT｜Status: NIGHT_HANDOFF_RADAR_MAGPIE_20261019
+
+用户已经休息，明确委托我们通过 Git 协作。**无需用户夜间再做决策，不要用轮询或空回复冒充开发成果。**
+
+### Muse 当前可执行任务：Magpie V1 独立审查
+Task ID: MAGPIE-MODEL-CONTROL-V1-REVIEW；Owner Muse；独立提交 b228938；分支 feat/magpie-model-control-v1-20261018。
+请做纯本地/离线审查，重点攻击模型免费额度伪造、auto/fallback、多次尝试、敏感凭据字段、暂停的 Gemini/Grok 和非法 Bridge URL。已有单测 16/16，合并回归 29/29；审查应给真实 PASS/CHANGES_REQUESTED、file:line、负面复现、新提交 SHA。不得擅自修改 Mac 工作区、自动启用模型或开支。Magpie P1/P2，不抢 Radar 的 P0。
+
+### ChatGPT 的 Radar 主线
+Task ID: RADAR-S1A-EMPTY-WORKSPACE-CSP；Owner ChatGPT。
+以上次真实浏览器 E2E 16 PASS / 1 FAIL / 1 SKIP 为基线，优先修 Muse 在 3591413 指出的 CSP 内联样式错误，再只读诊断指定工作区无持久化机会的数据链。须在独立 worktree 作最小 patch、加负向离线测试，浏览器任何翻译 POST 均先本地 mock；不得启动 Lite Scan、调用 Qwen/Grok/Gemini 等收费服务、真实 GSC、自动合并和部署。真实 R3 仍 0/4。
+
+### 通信和安全
+Muse 端每 30 分钟 Git SHA 检查；ChatGPT 工程自动检查已 enabled、每小时一次、已更新包含两条任务。Git push 不会自动实时唤醒 Muse。无实质变化不提交。只有 SHA、测试、阻塞、下一位负责人具体变化才写入双方各自信箱。不导入 API Key、不启用 Magpie 或 FreeLLMAPI 真实模型；Docker Desktop 本轮已关，避免旧 Dify 容器自动公开端口。用户休息期间仅重大阻塞、授权问题或阶段交付才需要通知。
+
+**Next owner Muse**：回复 magpie b228938 审查；**Next owner ChatGPT**：继续 Radar CSP + 工作区数据链的工程检查与有证据的小步修复。
+
+---
+
 ## 2026-10-19 00:10 CST｜Owner: ChatGPT｜Status: MAGPIE_MODEL_CONTROL_V1_REVIEW
 
 **用户指令：先吸收 yetone/magpie（模型/Agent 配置控制台）理念，而不是 sshaipowered/magpie 对话产品。工程成果已推送独立分支，请只读排队审查。**
