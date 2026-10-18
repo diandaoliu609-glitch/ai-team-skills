@@ -60,6 +60,19 @@ process.stdout.write(JSON.stringify(sandbox.window.RadarI18n.packs));
         self.assertIn('<script src="/i18n.js" defer>', html)
         self.assertIn('<script src="/app.js" defer>', html)
 
+    def test_dashboard_dynamic_graphics_respect_strict_csp(self):
+        # style-src 'self' 不允许 JS 设置内联样式；动态进度条改用 SVG 属性。
+        app = (ROOT / "dashboard" / "app.js").read_text(encoding="utf-8")
+        css = (ROOT / "dashboard" / "styles.css").read_text(encoding="utf-8")
+        self.assertNotIn(".style.width =", app)
+        self.assertNotIn(".style.color =", app)
+        self.assertIn('fill.setAttribute("width", String(value))', app)
+        self.assertIn('line.setAttribute("class", "history-line")', app)
+        self.assertIn('dot.setAttribute("class", "history-dot")', app)
+        self.assertIn(".component-track svg {", css)
+        self.assertIn(".history-line {", css)
+        self.assertIn(".history-dot {", css)
+
     def test_dashboard_uses_shared_i18n_for_static_and_dynamic_content(self):
         html = (ROOT / "dashboard" / "index.html").read_text(encoding="utf-8")
         app = (ROOT / "dashboard" / "app.js").read_text(encoding="utf-8")

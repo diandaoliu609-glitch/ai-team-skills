@@ -394,9 +394,17 @@ function renderComponents(components) {
     const row = el("div", "component-row");
     row.append(el("span", "component-name", label));
     const track = el("div", "component-track");
-    const fill = el("div", "component-fill");
-    fill.style.width = `${value}%`;
-    track.append(fill);
+    // 使用 SVG 几何属性设置进度，避免 CSP style-src 'self' 拦截内联样式。
+    const bar = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    bar.setAttribute("viewBox", "0 0 100 5");
+    bar.setAttribute("preserveAspectRatio", "none");
+    bar.setAttribute("aria-hidden", "true");
+    const fill = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    fill.setAttribute("class", "component-fill");
+    fill.setAttribute("width", String(value));
+    fill.setAttribute("height", "5");
+    bar.append(fill);
+    track.append(bar);
     row.append(track, el("span", "component-value", number(value)));
     grid.append(row);
   });
@@ -455,7 +463,7 @@ function renderHistory(items) {
   line.setAttribute("stroke-width", "3");
   line.setAttribute("stroke-linecap", "round");
   line.setAttribute("stroke-linejoin", "round");
-  line.style.color = "var(--accent)";
+  line.setAttribute("class", "history-line");
   svg.append(line);
 
   points.forEach(([x, y]) => {
@@ -464,7 +472,7 @@ function renderHistory(items) {
     dot.setAttribute("cy", String(y));
     dot.setAttribute("r", "4");
     dot.setAttribute("fill", "currentColor");
-    dot.style.color = "var(--accent-2)";
+    dot.setAttribute("class", "history-dot");
     svg.append(dot);
   });
   root.append(svg);

@@ -815,10 +815,22 @@ h4 {
   background: #1b2430;
 }
 
-.component-fill {
+.component-track svg {
+  display: block;
+  width: 100%;
   height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--blue), var(--accent));
+}
+
+.component-fill {
+  fill: var(--accent);
+}
+
+.history-line {
+  stroke: var(--accent);
+}
+
+.history-dot {
+  fill: var(--accent-2);
 }
 
 .component-value {
