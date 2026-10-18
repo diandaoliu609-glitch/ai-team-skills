@@ -52,6 +52,14 @@ process.stdout.write(JSON.stringify(sandbox.window.RadarI18n.packs));
                 with self.subTest(language=language, key=key):
                     self.assertNotEqual(packs[language][key], packs["en"][key])
 
+    def test_production_dashboard_must_not_load_third_party_javascript(self):
+        # 重要：页面可能含 GSC 站点和业务数据，不能加载开发期 Figma 捕获脚本。
+        html = (ROOT / "dashboard" / "index.html").read_text(encoding="utf-8")
+        self.assertNotIn("mcp.figma.com/mcp/html-to-design/capture.js", html)
+        self.assertFalse("https://mcp.figma.com/" in html)
+        self.assertIn('<script src="/i18n.js" defer>', html)
+        self.assertIn('<script src="/app.js" defer>', html)
+
     def test_dashboard_uses_shared_i18n_for_static_and_dynamic_content(self):
         html = (ROOT / "dashboard" / "index.html").read_text(encoding="utf-8")
         app = (ROOT / "dashboard" / "app.js").read_text(encoding="utf-8")

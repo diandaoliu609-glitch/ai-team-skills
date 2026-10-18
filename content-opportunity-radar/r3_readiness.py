@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from r3_seed_compare import score_compare
+from r3_gsc_evidence import verify_gsc_report
 from r3_user_session import score_session
 from r3_validation import score_batch
 from workspace import WorkspaceStore
@@ -72,9 +73,10 @@ def build_readiness(
     gsc_report_path = root / "gsc" / "result.json"
     gsc_result = _load(gsc_report_path) or {}
     token_present = bool(str(env.get("GSC_ACCESS_TOKEN") or "").strip())
-    # 中文说明：外部报告不能单独宣布验收通过；必须同时满足本地授权配置。
-    gsc_passed = (gsc_result.get("passed") is True
-                  and bool(configured_gsc) and token_present)
+    # 中文说明：不能相信 result.json 的 passed；还必须重新核验可信 SQLite
+    # GSC 官方 OAuth 事件记录、当前工作区站点、最新采集 run 和来源元数据。
+    gsc_passed = (bool(configured_gsc) and token_present
+                  and verify_gsc_report(gsc_result, database=database))
     gsc_gate = {
         "id": "gsc_first_party",
         "label": "GSC first-party validation（GSC 第一方验证）",

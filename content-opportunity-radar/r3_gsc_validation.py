@@ -5,9 +5,11 @@ import argparse
 import json
 import os
 from pathlib import Path
+from datetime import datetime, timezone
 from typing import Any, Mapping
 
 from workspace import WorkspaceStore, run_workspace, workspace_collection_plan
+from r3_gsc_evidence import latest_verified_gsc_run, verify_gsc_report
 
 
 SCHEMA_VERSION = "r3-gsc-validation-v1"
@@ -43,25 +45,57 @@ def doctor(*, database: str, workspace_id: str, environ: Mapping[str, str] | Non
     }
 
 
-def validate_result(payload: Mapping[str, Any]) -> dict[str, Any]:
+def validate_result(
+    payload: Mapping[str, Any], *, workspace_id: str | None = None,
+    database: str | None = None, started_after: datetime | None = None,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """不能把调用方声称的健康状态当作 GSC 第一方证据。
+
+    只有可信采集刚写入当前数据库、工作区/站点/运行一致，才允许 PASS。
+    不给数据库/工作区/启动时间上下文时 fail-closed，纯假字典只能 PENDING。
+    """
     jobs = list((payload.get("collection") or {}).get("jobs") or [])
-    gsc = next((row for row in jobs if row.get("provider") == "gsc"), None)
-    event_count = int((gsc or {}).get("event_count") or 0)
-    status = str((gsc or {}).get("status") or "missing")
+    gsc_jobs = [row for row in jobs if row.get("provider") == "gsc"]
+    gsc = gsc_jobs[0] if len(gsc_jobs) == 1 else {}
+    try:
+        event_count = int(gsc.get("event_count") or 0)
+    except (ValueError, TypeError):
+        event_count = 0
+    status = str(gsc.get("status") or "missing")
     top = list(payload.get("top_opportunities") or [])
-    provider_ok = status in {"healthy", "degraded"} and event_count > 0
-    opportunities_ok = len(top) > 0
+    input_workspace = (payload.get("workspace") or {}).get("workspace_id")
+    evidence = None
+    # 必须有可信上下文，不接受 payload 内自报的“运行证明”。
+    if (workspace_id and database and started_after is not None
+            and input_workspace == workspace_id):
+        evidence = latest_verified_gsc_run(
+            database=database, workspace_id=workspace_id,
+            started_after=started_after, now=now,
+        )
+    provider_ok = (
+        evidence is not None
+        and gsc.get("job_id") == f"{workspace_id}-gsc"
+        and status == evidence["status"]
+        and event_count == evidence["event_count"]
+        and event_count > 0
+    )
+    opportunities_ok = bool(top)
     return {
         "schema_version": SCHEMA_VERSION,
-        "workspace_id": (payload.get("workspace") or {}).get("workspace_id"),
+        "workspace_id": input_workspace,
         "gsc_provider_status": status,
         "gsc_event_count": event_count,
         "top_opportunity_count": len(top),
         "provider_evidence_pass": provider_ok,
         "opportunity_output_pass": opportunities_ok,
         "passed": provider_ok and opportunities_ok,
+        "gsc_collection_run_id": evidence["run_id"] if provider_ok else None,
+        "gsc_property_sha256": evidence["property_sha256"] if provider_ok else None,
+        "gsc_run_finished_at": evidence["finished_at"] if provider_ok else None,
+        "source_verified": bool(provider_ok),
         "top_opportunities": top[:5],
-        "warnings": list((gsc or {}).get("warnings") or []),
+        "warnings": list(gsc.get("warnings") or []),
     }
 
 
@@ -73,7 +107,8 @@ def render_markdown(result: Mapping[str, Any]) -> str:
         f"- Gate status（门槛状态）: **{status}**",
         f"- Workspace（工作区）: `{result.get('workspace_id')}`",
         f"- GSC provider status（GSC 数据源状态）: **{result.get('gsc_provider_status')}**",
-        f"- GSC events（GSC 真实事件数）: **{result.get('gsc_event_count', 0)}**",
+        f"- GSC events（报告事件数，未核验时不代表真实数据）: **{result.get('gsc_event_count', 0)}**",
+        f"- SQLite/OAuth evidence checked（本地采集证据已核验）: **{result.get('source_verified') is True}**",
         f"- Top opportunities（机会数）: **{result.get('top_opportunity_count', 0)}**",
         "",
         "## Top Opportunities（Top 机会）",
@@ -114,7 +149,12 @@ def main() -> int:
     if not preflight["ready"]:
         print(json.dumps(preflight, ensure_ascii=False, indent=2))
         return 3
-    result = validate_result(run_workspace(args.workspace_id, database=args.db, force_collect=True, top_n=5))
+    # 在调用采集器之前固定起始时间；禁止旧的 cached GSC run 冒充本次采集。
+    started_after = datetime.now(timezone.utc)
+    result = validate_result(
+        run_workspace(args.workspace_id, database=args.db, force_collect=True, top_n=5),
+        workspace_id=args.workspace_id, database=args.db, started_after=started_after,
+    )
     payload = json.dumps(result, ensure_ascii=False, indent=2) + "\n"
     if args.output:
         Path(args.output).write_text(payload, encoding="utf-8")
