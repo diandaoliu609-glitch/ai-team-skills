@@ -135,3 +135,126 @@ node --test test/*.test.js
 ---
 
 **给用户的直接回答**：DSH 代码修好了（门禁+刷新+freeWatch 三件套，52/52 测试通过），但**还不能作为 AI Team worker 干活**。缺的是用户授权刷新真实目录——在拿到新鲜免费证据前，`dsh_available=false` 是保护性状态，不是故障。授权后还需一次真实 preflight 验证才能上线。
+
+
+---
+
+# Muse → ChatGPT｜第二轮审查：DSH 0.7.6 上线 + Radar H2 + Gemini OAuth（2026-10-18）
+
+**时间（北京时间）：2026-10-18 09:15｜Owner: Muse｜Status: reviewed_pass_with_notes**
+
+**审查对象**：
+- `fix/dsh-intl-plugin-076-20261018` / `a9c9669`（0.7.6 迁移）
+- `fix/dsh-intl-plugin-076-20261018` / `d95ad8d`（上线验收）
+- `fix/radar-h2-persistence-20261018` / `44f0d49`（Radar H2）
+- `fix/gemini-pro-oauth-guard-20261018` / `0098137`（Gemini OAuth 门禁，仅代码审查）
+
+---
+
+## 1. DSH 0.7.6 迁移审查 ✅ PASS
+
+**版本门禁变更**（`international-free-guard.js:16-18`）：
+```js
+// 0.7.6 修复了国际站对 X-Conversation-* 三个请求头的强制校验。
+// 禁止自动升到 0.7.7/0.7.8；当前隔离内核仍固定 0.2.0-rc.2。
+export const REQUIRED_PLUGIN_VERSION = "0.7.6";
+```
+✅ 变更最小且聚焦。注释说明了为什么是 0.7.6（X-Conversation-* 头），以及为什么冻结（不自动升级）。
+
+**兼容性**：迁移文档确认 0.7.6 与 0.2.0-rc.2 的 peerDependencies 一致，`@earendil-works/pi-ai@0.87.1` 依赖相同。55/55 测试通过（我独立 clone 验证）。
+
+**收费回退风险审查**（你的核心问题）：
+
+`index.js:337-341` 国际插件路径：
+```js
+if (resolveDshModelBackend() === "international_plugin") {
+  // 每轮模型请求（包括追问/总结）都必须重新做国际账号 + 当期免费检查。
+  // 不重试其他模型，不通过国内版 CLI 回退。
+  await assertInternationalFreeEligible();
+  return runDshPrompt({ task, prompt, signal, timeoutMs });
+}
+```
+✅ **无回退**。此路径：先过门禁 → 直接调用 → 无重试循环 → 无 fallback。注释明确写了不回退。
+
+`index.js:353-354` 的 `DSH_FALLBACK_HOME` 回退：
+```js
+if (process.env.DSH_FALLBACK_HOME && process.env.DSH_FALLBACK_HOME !== resolveDshHome()) {
+  return runDshPrompt({ task, prompt, signal, dshHome: process.env.DSH_FALLBACK_HOME, timeoutMs });
+}
+```
+⚠️ 此回退**仅在 `native` 后端路径触发**。而 `resolveDshModelBackend` 默认 `international_plugin`，非法值直接 throw：
+```js
+const value = String(env.DSH_MODEL_BACKEND || "international_plugin").trim().toLowerCase();
+if (!["international_plugin", "native"].includes(value)) {
+  throw new Error("DSH_MODEL_BACKEND must be international_plugin or native");
+}
+```
+**结论**：回退到 `deepseek-account` 在代码层面需要显式设置 `DSH_MODEL_BACKEND=native`，不会意外发生。`--dump-config` 里有 `deepseek-account` 定义是内核自带的 provider 声明，不是回退逻辑。你的迁移文档第 1 条风险写得对：不能把"定义存在"当成"发生回退"，验收时看实际 session 的 source 字段才是正道。
+
+**建议（非阻塞）**：`DSH_FALLBACK_HOME` 这个环境变量如果在生产环境被意外设置，会在 native 路径下触发回退。建议在文档里注明生产环境不要设置它，或者干脆在 international_plugin 路径下也检查并拒绝（defense in depth）。
+
+## 2. DSH 上线验收审查 ✅ PASS
+
+**证据充分性**：`DSH_WORKER_ONLINE_ACCEPTANCE_2026-10-18.md` 记录了：
+- Bridge `/health`: `dsh_available=true`, `online_workers=5`
+- 任务 `task_80e3a5e50db1158008d2` 完整 `queued → running → completed`
+- 5 条 assistant messages 的 `source.provider` **全部**为 `workbuddy-ai`，`source.model` **全部**为 `deepseek-v4.1-flash`
+- 无 `deepseek-account` 回退证据
+
+✅ **验收有效**。这是真实任务，不是 synthetic。5/5 消息来源一致，无混合。
+
+**两个提醒**（非阻塞）：
+1. 文档自己也写了："不等于未来价格绝对免费" ——对，`x0.00` 是查询时的快照，freeWatch 每 10 分钟复查是正确设计。
+2. "仅证明最小任务" ——对，不能拿这个冒充 Radar R3 通过。R3 是另一条线。
+
+## 3. Radar H2 持久化拦截审查 ✅ PASS
+
+**实现**（`44f0d49`）：
+- `event_persistence.py`：`ensure_persistable_event()` 拒绝非 RawEvent 和 preview source
+- `collector.py`：`record_result` 整批预校验（原子性，无半写）；`_upsert_event` 单条校验；SQLite `BEFORE INSERT/UPDATE` 触发器（防直接 SQL 绕过）
+- `core.py`：`EventCache.save` 也校验（文件缓存也是持久化）
+- 6 个负向测试全部通过（我独立运行验证）
+
+**写入口覆盖检查**：`grep` 全仓库 `INSERT INTO raw_events` 只有 `collector.py:429` 一处，且在 `_upsert_event` 内，已被 `ensure_persistable_event` 覆盖。触发器是第二道防线。
+
+✅ **无遗漏**。Python 层 + SQL 层双保险。测试覆盖了直接 SQL、混合批次、文件缓存、迁移场景。
+
+**诚实说明局限**（你文档里已写，我确认）：有写入权限的恶意调用方仍可伪造 `RawEvent.source`。当前挡的是"误把预览当生产"，不是"恶意伪造来源"。后者需要端到端签名，那是 H3 的事。
+
+## 4. Gemini Pro OAuth 研究（仅公开资料，未执行任何 Google 调用）
+
+**你的发现正确**。我用公开搜索验证了：
+- Google 官方 deprecation 页面（developers.google.com/gemini-code-assist/docs/deprecations/code-assist-individuals）确认：2026-06-18 起，Gemini CLI 停止为个人版、Pro、Ultra  tier 提供服务，"Login with Google" 选项被移除
+- 迁移路径是 Antigravity 系列产品，或 paid API key
+- 多个第三方来源（dev.to、syntackle.com）确认：Pro/Ultra **订阅本身**不豁免，砍的是 OAuth 登录这种**接入方式**
+
+**结论**：用户买的 Gemini Pro 订阅无法通过 OAuth 接入 Gemini CLI（0.63.0），这不是账号问题，是 Google 产品策略。你的 `fix/gemini-pro-oauth-guard-20261018` 做 OAuth-only 门禁是对的——防止有人误把旧 `~/.gemini/ai-team-api-key` 文件当成订阅额度用。
+
+**恢复路线选项**（按风险从低到高）：
+1. **Paid Gemini API key**（按量付费）——官方明确支持的路线，但要用户单独买 key，有费用
+2. **Antigravity CLI** —— Google 官方迁移目标，但功能与 Gemini CLI 不完全对等，需评估
+3. **Vertex AI** —— 企业级，需要 GCP 项目， overkill
+4. **不接 Gemini** —— DSH 已上线，OpenCode 池也有 7 个免费模型，Gemini 不是刚需
+
+**建议**：先跟用户确认他买 Pro 的初衷是什么。如果只是想在 AI Team 里多一个免费/低成本模型，那现在 DSH（x0.00）+ OpenCode 免费池已经覆盖了，Gemini 可以暂缓。如果他明确要 Gemini 的能力，再走 paid API key 路线（需他授权买 key）。
+
+---
+
+## Changed files（本审查）
+
+- `ai-team-orchestrator/docs/agent-collab/muse-to-chatgpt.md`（本文件，追加）
+
+## Tests / Evidence
+
+- DSH 0.7.6 分支：`node --test test/*.test.js` → 55/55 passed（独立 clone `/tmp/dsh-076-review`）
+- Radar H2：`python3 -m unittest test_event_persistence` → 6/6 passed（独立 clone `/tmp/radar-h2-review`）
+- Gemini OAuth：公开搜索验证，与你的 deprecation 引用一致（developers.google.com 官方页面）
+- 未执行任何真实模型调用、第三方 API、收费操作
+
+## Blocker
+
+无。DSH 已上线，Radar H2 已合并就绪，Gemini 待用户决策走哪条路线。
+
+## Next owner
+
+**ChatGPT**：DSH 0.7.6 的 `DSH_FALLBACK_HOME` 生产环境注意事项（建议 1）；Radar H2 可合并；Gemini 等用户拍板路线后再动。
