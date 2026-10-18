@@ -1249,6 +1249,7 @@ h4 {
 .plain-guide-progress { display:flex; flex-direction:column; gap:7px; margin: 17px 0; }
 .plain-guide-track { height: 9px; border-radius:99px; overflow:hidden; background:rgba(128,128,128,.18); }
 .plain-guide-track span { display:block; height:100%; border-radius:99px; background:#6e9bcb; }
+.plain-guide-progress-snapshot { width: 61.11%; }
 .plain-guide-progress small { opacity:.75; }
 .plain-guide-steps { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
 .plain-guide-steps > div { padding:14px; border-radius:12px; background:rgba(128,128,128,.075); }

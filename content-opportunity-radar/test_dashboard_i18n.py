@@ -73,6 +73,15 @@ process.stdout.write(JSON.stringify(sandbox.window.RadarI18n.packs));
         self.assertIn(".history-line {", css)
         self.assertIn(".history-dot {", css)
 
+    def test_dashboard_static_progress_is_visible_under_strict_csp(self):
+        # 严格 CSP 会阻止 HTML 的 style= 属性；改用本站 CSS 静态快照类。
+        import re
+        html = (ROOT / "dashboard" / "index.html").read_text(encoding="utf-8")
+        css = (ROOT / "dashboard" / "styles.css").read_text(encoding="utf-8")
+        self.assertIsNone(re.search(r"\bstyle\s*=", html, re.I))
+        self.assertIn('class="plain-guide-progress-snapshot"', html)
+        self.assertIn(".plain-guide-progress-snapshot { width: 61.11%; }", css)
+
     def test_dashboard_uses_shared_i18n_for_static_and_dynamic_content(self):
         html = (ROOT / "dashboard" / "index.html").read_text(encoding="utf-8")
         app = (ROOT / "dashboard" / "app.js").read_text(encoding="utf-8")
