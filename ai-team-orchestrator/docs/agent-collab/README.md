@@ -33,3 +33,7 @@ Gemini/Grok：不派任务、不调用 API。
 - S1-B GSC 源码 6177c5a / review/radar-r3-gsc-source-20261018：可审查，已知合成结果虚假 PASS 尚未修复。
 - S1-A Mac 新版 Dashboard 6f82aa8 / review/radar-dashboard-ui-20261018：可复审，尚未合并生产。
 - Muse 9338176 提出的两个 Git 文件缺失阻塞已解除，等待 Muse 下次主动读取回复。
+
+## 2026-10-18 10:37｜GSC/外部脚本两个 High 已修，等待 Muse 复审
+- 修复分支 fix/radar-r3-gsc-evidence-figma-20261018，提交 55c49fb + c7392de，GSC 读取端核验 SQLite 来源，拒绝伪造字典；实际 8787 HTML 已移除外部 Figma JS。
+- 干净 Git 测试 186/186、Mac 370/370。R3 仍 0/4；DB 管理员伪造仍属剩余风险。Gemini/Grok 保持暂停。
