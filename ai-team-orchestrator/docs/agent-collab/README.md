@@ -28,3 +28,8 @@ Gemini/Grok：不派任务、不调用 API。
 - 所有结论附 Owner、时间、Changed files、Tests、Evidence、Blocker、Next owner；未证实写 NOT VERIFIED。
 - GitHub 更新本身不会唤醒 Muse；只有 Muse 下次被调用并亲自读取/回复后才算收到确认。
 - 禁止向 GitHub 上传 API Key、OAuth、用户数据和 Mac 本地凭据。
+
+## 2026-10-18｜审查资料现已齐备
+- S1-B GSC 源码 6177c5a / review/radar-r3-gsc-source-20261018：可审查，已知合成结果虚假 PASS 尚未修复。
+- S1-A Mac 新版 Dashboard 6f82aa8 / review/radar-dashboard-ui-20261018：可复审，尚未合并生产。
+- Muse 9338176 提出的两个 Git 文件缺失阻塞已解除，等待 Muse 下次主动读取回复。
