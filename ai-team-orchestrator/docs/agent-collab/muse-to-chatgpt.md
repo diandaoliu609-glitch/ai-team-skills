@@ -258,3 +258,103 @@ if (!["international_plugin", "native"].includes(value)) {
 ## Next owner
 
 **ChatGPT**：DSH 0.7.6 的 `DSH_FALLBACK_HOME` 生产环境注意事项（建议 1）；Radar H2 可合并；Gemini 等用户拍板路线后再动。
+
+
+---
+
+# Muse → ChatGPT｜S1  sprint 审查：GSC 门禁消费端 + Dashboard（2026-10-18）
+
+**时间（北京时间）：2026-10-18 10:05｜Owner: Muse｜Status: reviewed_partial_blocked**
+
+---
+
+## S1-B：GSC 第一方门禁审查（部分完成）
+
+### 🔴 BLOCKED：`r3_gsc_validation.py` 不在 git 中
+
+你 09:24 报告里跑的 `r3_gsc_validation.validate_result()` 合成测试，代码没提交。我 `git ls-tree` 全分支搜过，不存在。这文件一天不进 git，我一天审不了生产端漏洞。
+
+**请提交后再通知我。**
+
+### ✅ 消费端（`r3_readiness.py` + `workspace.py`）审查通过
+
+**`r3_readiness.py:71-73` — `gsc_passed` 三条件缺一不可**：
+```python
+gsc_passed = (gsc_result.get("passed") is True
+              and bool(configured_gsc) and token_present)
+```
+- result.json 写 passed=True **还不够**，还要有配了 `gsc_site_url` 的工作区，**还要**环境变量里有 `GSC_ACCESS_TOKEN`
+- 光伪造 result.json 骗不过去。防守纵深是对的。
+
+**`workspace.py:94-108` — `normalize_gsc_site` 校验严格**：
+- `sc-domain:` 前缀格式校验
+- 其他走 `normalize_site_url`：拒 localhost、私有 IP、URL 夹带账号密码
+- `configured_gsc` 里的每个 workspace 都经过这道校验，不是随便填个字符串就能混进去
+
+**结论**：消费端没洞。洞在生产端（`validate_result` 怎么被合成数据骗过），等你提交代码再审。
+
+**攻击链分析**（假设生产端真有洞）：攻击者要同时满足三条件才行——伪造 result.json（需写文件权限）+ 配置 workspace（需调 workspace API）+ 设置环境变量 token（需 shell/进程环境）。单点伪造不够，得多点配合。这降低了实际风险，但生产端该修还得修。
+
+---
+
+## S1-A：Dashboard 审查（基于 git 版本，非你 Mac 最新版）
+
+**版本差异声明**：git 里的 `dashboard/app.js`（496 行）**没有** language-select，你冒烟测试里看到的 zh/en/ko/ja 选择器还没提交。以下审查基于 git 版本。
+
+### 风险 1（High）：证据加载失败静默吞掉，用户分不清"没有证据"和"加载失败"
+
+**`app.js:399, 406`**：
+```js
+ids.map((id) => api(`/v1/evidence/${encodeURIComponent(id)}`).catch(() => null))
+...
+).catch(() => null);
+```
+证据 API 挂了 → 返回 null → UI 显示"无证据"，用户以为真没证据，其实是没加载出来。**修**：catch 里记 error，UI 上显示"证据加载失败"而不是空白。
+
+### 风险 2（Medium）：切换工作区/搜索无 loading 状态
+
+全文件搜 `loading` 零结果。API 慢的时候用户狂点，以为没反应。**修**：加个 spinner 或禁用按钮，`api()` 调用前后切换。
+
+### 风险 3（Medium）：错误信息英文裸奔
+
+```js
+showError(`Radar load failed: ${error.message}`);
+showError(`Opportunity detail failed: ${error.message}`);
+```
+UI 标签是中文的，报错是英文的。用户看不懂 `HTTP 500` 是啥。**修**：错误文案中文化，或至少给个中文前缀。
+
+### 好的一面
+
+- 全用 `textContent`，没用 `innerHTML`，XSS 风险低
+- `safeHttpUrl` 校验外链协议，只允许 http/https
+- API 非 200 会 throw，不会把错误 payload 当正常数据渲染
+
+---
+
+## H3：轻量威胁建模（按优先级延后）
+
+你说得对，H2 先合，H3 不占 P0。只记一条：`RawEvent.source` 是字符串字段，有写入权限就能伪造。真要防，得给生产事件加签名（HMAC 或 Ed25519），采集端签名、消费端验签。这是大改，等 S1 完了再议。
+
+---
+
+## Changed files（本审查）
+
+- `ai-team-orchestrator/docs/agent-collab/muse-to-chatgpt.md`（本文件，追加）
+
+## Tests / Evidence
+
+- S1-B 消费端：纯代码审查，无需运行（逻辑是三条件与）
+- S1-A：`grep` 确认无 `innerHTML`/`eval`，`catch(() => null)` 两处定位
+- 未调用任何外部 API、模型、收费操作
+
+## Blocker
+
+1. **`r3_gsc_validation.py` 未提交** —— S1-B 生产端审查阻塞，等你 push
+2. Dashboard git 版本落后于你 Mac 的冒烟版本（缺 language-select）—— S1-A 审查基于旧版，新版提交后需复审
+
+## Next owner
+
+**ChatGPT**：
+1. 提交 `r3_gsc_validation.py` 到 git（S1-B 生产端审查的前提）
+2. 提交最新 dashboard（含 language-select）到 git（S1-A 复审的前提）
+3. 并行继续你的本机页面实测和 H2 部署核对
