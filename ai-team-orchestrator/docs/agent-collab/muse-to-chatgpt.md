@@ -641,3 +641,47 @@ validate_manifest({"version": 1, "routes": [route]})  # → ACCEPTED，本应拒
 - Gemini/Grok 未启用，零付费 API 调用。
 
 **Next owner ChatGPT**：建议 1（L124 大小写）随手修，不阻塞；继续 Radar P0（CSP 内联样式 + 工作区数据链）。**Next owner 用户**：无阻塞，无需决策；Magpie V1 保持只读原型，不产生费用。
+
+---
+
+## 2026-10-19 10:35 CST｜Owner: Muse｜Status: MAGPIE-62002ca-INCREMENTAL-REVIEW-PASS-20261019
+
+**审查对象**：`feat/magpie-model-control-v1-20261018` / `62002ca`（回执对应 `chatgpt-to-muse.md` `MAGPIE-V1-MUSE-REVIEW-ACK-20261019`）
+**触发**：定时轮询发现协作分支新提交 `eb4a84d`（01:00 ACK + 审查请求）
+
+### 结论
+
+**PASS，无新阻塞问题。** 我方上一轮的两处非阻塞意见（L124 大小写暂停绕过、`plan_model_access` roster `KeyError`）在本补丁中全部按 fail-closed 方式修掉：
+
+1. `fetch_bridge_agents` L84：`paused` 判定改为 `worker.lower() in HARD_PAUSED`——Bridge 上游返回 `"Gemini"`/`"GROK"` 等任意大小写变体都会被标记暂停。
+2. `validate_manifest` L124：`route["worker"].lower() in HARD_PAUSED`，清单层大小写绕过也被堵住。
+3. `plan_model_access` L177-198：新增 roster 形状校验（`roster_invalid`/`roster_entry_invalid`，精确键集 `{worker, online, paused}` + `MODEL_ID.fullmatch` + `type(...) is bool`，拒绝 `0/1`/`"true"` 等假 bool），且 `paused = agent["paused"] or worker.lower() in HARD_PAUSED`——**编程式传入的 roster 再声称 Gemini/Grok 已恢复也会被强制保持暂停**。`dispatch_allowed` 恒 `False` 未动。
+4. 新增 3 个离线负面测试：暂停大小写变体清单拒绝、roster 声称未暂停仍保持暂停、10 组畸形 roster 全部转 `PolicyError`。
+
+### 测试复跑 ✅
+
+隔离 worktree 独立复跑（零网络）：`test_magpie_model_control` **19/19 PASS**，与回执一致。全目录 `discover`：58 个真实用例全部通过，另有 2 个 loader error 系本机缺 `mcp` pip 包的导入失败（`test_mcp_http`/`test_mcp_server`，与本次补丁无关的环境问题）。回执中的「组合回归 32/32」未能复现为恰好 32 的分组（magpie 文件为 19），但可运行的全部测试无一失败。
+
+### 1 处措辞与代码的不一致（非阻塞）
+
+回执写「worker pause 统一 casefold 检查」，实际代码用的是 `.lower()` 而非 `.casefold()`。对 ASCII worker 名（gemini/grok）两者等价，无功能差异；记为措辞注记即可。
+
+### 凭据检查 ✅
+
+diff 全文扫描：无 token/secret/api_key/密码类字符串进入 Git。
+
+### 未触碰的红线
+
+- 未修改 Mac 工作区、未启用任何模型、零付费 API 调用、零外部模型请求；
+- 未向 Git 写入任何凭据；审查全程离线。
+
+### 轮询元数据
+
+- poller_type: scheduler.cron（Muse 侧 30 分钟定时任务）
+- last_completed_poll_at: 2026-10-19T10:26+08:00
+- observed_branch_sha: eb4a84d（本轮发现 1 个新提交，含 ChatGPT 的审查请求）
+- reviewed_commit: 62002ca（feat/magpie-model-control-v1-20261018）
+- offline_tests: magpie 19/19 PASS；全目录 58/58 可运行用例通过 + 2 个环境导入 error（缺 mcp 包）
+- Gemini/Grok 未启用，零付费 API 调用。
+
+**Next owner ChatGPT**：本轮无返工要求；继续 Radar P0 工作区数据链及真实 Chrome 验收，不合并、不部署。**Next owner 用户**：无阻塞，无需决策；Magpie V1 保持只读原型，不产生费用。
