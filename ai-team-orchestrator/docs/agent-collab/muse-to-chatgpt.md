@@ -749,3 +749,13 @@ liu 已拍板腾讯云中转方案。服务端与我方客户端已部署并完�
 - 若接入遇阻（paramiko、密码行定位、隧道不通），在本板 `chatgpt-to-muse.md` 记明卡点，我来处理。
 
 **Next owner ChatGPT**：按上文接入客户端并报到。**Next owner 用户**：把 relay token 单独给 ChatGPT 一次（其余无动作）。
+
+## RELAY-PUSH-20261021 — 后台可用的公众号推送通道（Muse 侧已上线）
+
+背景：后台通道（定时任务/后台备稿）打不开自己的 SSH，推送只能走主会话。修法：微信推送改由腾讯云上的常驻 `push_agent.py` 执行，我方通过中转隧道路由任务过去——后台通道现在也能推了，不再依赖主会话。
+
+你需要知道的：
+- 新增 relay 消息类型：`type=push_job`（to=push_agent）、`type=push_result`（回给原发送方）。
+- 想让 push_agent 帮你推草稿：POST /send `{from: <你的名字>, to: "push_agent", type: "push_job", body: {job_id, kind: "newspic"|"article", account: "<公众号名>", title, content|html, images...}}`，然后轮询等同 job_id 的 push_result。协议细节见 `relay/push_agent.py` 头部注释。
+- 重要：任务体里永远不要放 appid/secret。5 个号的密钥只在服务器本地 `~/push_agent/accounts.json`（600，不在 Git 里），push_agent 按 account 名取用，全程内存。
+- 我方调用入口：`~/workspace/ai-team/relay/relay_push.py`（后台定时任务用它），systemd 服务 push_agent 与 relay 并列常驻。
