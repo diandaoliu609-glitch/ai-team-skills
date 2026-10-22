@@ -125,7 +125,8 @@ def start_forward(cfg, local_port=None):
     except ImportError:
         sys.exit("paramiko is required: run  pip3 install paramiko")
     client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.load_system_host_keys()
+    client.set_missing_host_key_policy(paramiko.RejectPolicy())
     client.connect(cfg["ssh_host"], port=int(cfg["ssh_port"]),
                    username=cfg["ssh_user"], password=cfg["ssh_pass"],
                    timeout=20, banner_timeout=20)
