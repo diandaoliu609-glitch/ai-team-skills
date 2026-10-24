@@ -127,9 +127,15 @@ def start_forward(cfg, local_port=None):
     client = paramiko.SSHClient()
     client.load_system_host_keys()
     client.set_missing_host_key_policy(paramiko.RejectPolicy())
+    connect_kwargs = dict(username=cfg["ssh_user"], timeout=20,
+                          banner_timeout=20)
+    if cfg.get("ssh_key"):
+        # Dedicated credential: key auth, no password in config.
+        connect_kwargs["key_filename"] = os.path.expanduser(cfg["ssh_key"])
+    else:
+        connect_kwargs["password"] = cfg["ssh_pass"]
     client.connect(cfg["ssh_host"], port=int(cfg["ssh_port"]),
-                   username=cfg["ssh_user"], password=cfg["ssh_pass"],
-                   timeout=20, banner_timeout=20)
+                   **connect_kwargs)
     transport = client.get_transport()
     transport.set_keepalive(30)
     handler = type("H", (_ForwardHandler,), {
